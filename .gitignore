@@ -1,6 +1,12 @@
 .vs/
 **/[Bb]in/
 **/[Oo]bj/
+**/dist/
+**/node_modules/
+release-evidence/
+release-staging/
+.release-verify/
+.release-contract-fixtures/
 *.suo
 *.user
 *.userosscache

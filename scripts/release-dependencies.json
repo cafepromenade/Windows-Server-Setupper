@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "workflow": ".github/workflows/windows-release.yml",
+  "jobs": [
+    {
+      "id": "windows_release",
+      "displayName": "Build, package, and publish Windows release",
+      "runner": "windows-2025",
+      "bootstrapProof": "The push/workflow_dispatch job starts on a fresh GitHub-hosted Windows image, runs build.bat /s and build-installer.bat /s, and fails before publication if either bootstrap or packaging path cannot supply a declared dependency.",
+      "firstRealWork": "build.bat /s",
+      "dependencies": [
+        {
+          "name": "Git",
+          "constraint": "Git CLI available to the checked-out repository",
+          "source": "GitHub-hosted runner image",
+          "bootstrap": "actions/checkout validates the Git checkout before the build scripts run"
+        },
+        {
+          "name": "GitHub CLI",
+          "constraint": "gh CLI compatible with GitHub Releases and Actions REST APIs",
+          "source": "GitHub-hosted runner image",
+          "bootstrap": "The workflow checks gh --version before release preparation"
+        },
+        {
+          "name": "PowerShell",
+          "constraint": "PowerShell 7 for workflow scripts and Windows PowerShell 5.1-compatible helpers where called by batch files",
+          "source": "windows-2025 runner image",
+          "bootstrap": "The workflow uses pwsh and the batch scripts invoke powershell.exe explicitly"
+        },
+        {
+          "name": "Microsoft Build Tools",
+          "constraint": "Visual Studio 2022 MSBuild with the .NET Framework desktop build workload",
+          "source": "Microsoft.VisualStudio.2022.BuildTools from the canonical winget source when absent",
+          "bootstrap": "build.bat discovers MSBuild with vswhere and installs the exact canonical winget package non-interactively when missing"
+        },
+        {
+          "name": ".NET Framework reference assemblies",
+          "constraint": "Microsoft.NETFramework.ReferenceAssemblies.net472 1.0.3",
+          "source": "NuGet.org v3 flat-container package with SHA-512 verified against NuGet registration metadata",
+          "bootstrap": "build.bat installs the pinned package into a per-user toolchain cache when the developer targeting pack is absent"
+        },
+        {
+          "name": "NuGet project packages",
+          "constraint": "Versions declared by the solution packages.config files and project files",
+          "source": "NuGet sources declared by the repository and MSBuild restore",
+          "bootstrap": "build.bat runs solution-context MSBuild Restore with RestorePackagesConfig=true"
+        },
+        {
+          "name": "Node.js",
+          "constraint": "24.19.0 from .node-version",
+          "source": "nodejs.org official Windows x64 archive with SHA-256 verified against SHASUMS256.txt",
+          "bootstrap": "scripts/ensure-node.ps1 reuses an exact installed version or installs the verified archive into a per-user toolchain cache"
+        },
+        {
+          "name": "Exchange Auto Installer npm packages",
+          "constraint": "Exact package-lock.json lockfile, including Electron 43.4.0 and electron-builder 26.15.3",
+          "source": "npm registry through npm ci",
+          "bootstrap": "build.bat and build-installer.bat run npm ci from the owning package"
+        },
+        {
+          "name": "Inno Setup",
+          "constraint": "Inno Setup 6",
+          "source": "JRSoftware.InnoSetup from the canonical winget source",
+          "bootstrap": "build-installer.bat discovers ISCC.exe and installs the canonical package non-interactively when missing"
+        },
+        {
+          "name": "Squirrel.Windows packager",
+          "constraint": "electron-builder-squirrel-windows 26.15.3",
+          "source": "Exchange Auto Installer package-lock.json",
+          "bootstrap": "npm ci materializes the exact locked packager before npm run package"
+        }
+      ],
+      "safeOutputs": [
+        "WindowsServerTools-Setup-<commit>.exe",
+        "ExchangeAutoInstaller-<version>-<arch>-Setup.exe",
+        "RELEASES",
+        "*-full.nupkg",
+        "*-delta.nupkg when generated",
+        "SHA256SUMS.txt",
+        "artifact-manifest.json",
+        "exchange-package.json",
+        "line-count.md",
+        "line-count.json",
+        "release-dependencies.json",
+        "run-context.json"
+      ]
+    }
+  ]
+}

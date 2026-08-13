@@ -8,6 +8,8 @@ set "COMMIT_FILE=%PROJECT_OUTPUT%\source-commit.txt"
 set "BUILD_HASH_FILE=%PROJECT_OUTPUT%\source-executable.sha256"
 set "SCRIPT=%ROOT%packaging\WindowsServerTools.iss"
 set "INSTALLER_DIR=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Installer"
+set "EXCHANGE_ROOT=%ROOT%Windows-Server-Tools\Exchange-Auto-Installer"
+set "EXCHANGE_DIST=%ROOT%Windows-Server-Tools\Exchange-Auto-Installer\dist"
 set "SILENT_MODE=0"
 
 if /i "%SILENT%"=="1" set "SILENT_MODE=1"
@@ -21,7 +23,7 @@ pushd "%ROOT%" >nul || (
     exit /b 1
 )
 
-echo [1/6] Recording the exact source commit...
+echo [1/10] Recording the exact source commit...
 where git.exe >nul 2>&1 || (
     echo ERROR: Missing dependency: Git is required to identify the installer source commit.
     popd >nul
@@ -39,40 +41,9 @@ if errorlevel 1 (
     popd >nul
     exit /b 1
 )
-set "GENERATED_TRACKED_DIFF="
-set "UNEXPECTED_TRACKED_DIFF="
-for /f "delims=" %%I in ('git diff --name-only --ignore-submodules --') do (
-    call :is_known_build_byproduct "%%I"
-    if errorlevel 1 (
-        if not defined UNEXPECTED_TRACKED_DIFF set "UNEXPECTED_TRACKED_DIFF=%%I"
-    ) else (
-        set "GENERATED_TRACKED_DIFF=1"
-    )
-)
-if defined UNEXPECTED_TRACKED_DIFF (
-    echo ERROR: Tracked source differs from commit %SOURCE_COMMIT% at "%UNEXPECTED_TRACKED_DIFF%".
-    popd >nul
-    exit /b 1
-)
-if defined GENERATED_TRACKED_DIFF (
-    call :validate_candidate_build
-    set "GENERATED_PROVENANCE_EXIT=!ERRORLEVEL!"
-    if not "!GENERATED_PROVENANCE_EXIT!"=="0" (
-        echo ERROR: Generated build byproducts differ, but no matching commit-and-hash build provenance exists.
-        popd >nul
-        exit /b !GENERATED_PROVENANCE_EXIT!
-    )
-    git restore --source=HEAD -- "Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref"
-    set "GENERATED_RESTORE_EXIT=!ERRORLEVEL!"
-    if not "!GENERATED_RESTORE_EXIT!"=="0" (
-        echo ERROR: The five known tracked build byproducts could not be restored to commit %SOURCE_COMMIT%.
-        popd >nul
-        exit /b !GENERATED_RESTORE_EXIT!
-    )
-)
 git diff --quiet --ignore-submodules --
 if errorlevel 1 (
-    echo ERROR: Tracked files still differ from commit %SOURCE_COMMIT% after generated-output reconciliation.
+    echo ERROR: Tracked files differ from commit %SOURCE_COMMIT%. This script never restores or discards local edits.
     popd >nul
     exit /b 1
 )
@@ -85,7 +56,7 @@ if defined UNTRACKED_SOURCE (
 )
 echo Source commit: %SOURCE_COMMIT%
 
-echo [2/6] Ensuring an exact Release application build...
+echo [2/10] Ensuring exact runnable application builds...
 call :validate_candidate_build
 set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
 if "!CANDIDATE_BUILD_EXIT!"=="0" (
@@ -107,7 +78,7 @@ if "!CANDIDATE_BUILD_EXIT!"=="0" (
     )
 )
 
-echo [3/6] Locating Inno Setup 6...
+echo [3/10] Locating Inno Setup 6...
 call :find_iscc
 if not defined ISCC (
     echo Inno Setup 6 was not found. Installing canonical winget package JRSoftware.InnoSetup...
@@ -133,7 +104,7 @@ if not defined ISCC (
 )
 echo Found Inno Setup compiler: "%ISCC%"
 
-echo [4/6] Packaging an unsigned installer...
+echo [4/10] Packaging the unsigned primary WPF installer...
 "%ISCC%" "/DSourceCommit=%SOURCE_COMMIT%" "%SCRIPT%"
 set "ISCC_EXIT=!ERRORLEVEL!"
 if not "!ISCC_EXIT!"=="0" (
@@ -143,7 +114,7 @@ if not "!ISCC_EXIT!"=="0" (
 )
 
 set "INSTALLER=%INSTALLER_DIR%\WindowsServerTools-Setup-%SOURCE_COMMIT%.exe"
-echo [5/6] Verifying installer shape and unsigned status...
+echo [5/10] Verifying the primary installer shape and unsigned status...
 if not exist "%INSTALLER%" (
     echo ERROR: Inno Setup returned success but the installer is missing: "%INSTALLER%".
     popd >nul
@@ -164,7 +135,7 @@ if not "!SIGNATURE_CHECK_EXIT!"=="0" (
     exit /b !SIGNATURE_CHECK_EXIT!
 )
 
-echo [6/6] Calculating SHA-256...
+echo [6/10] Calculating the primary installer SHA-256...
 set "WST_HASH_TARGET=%INSTALLER%"
 for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "INSTALLER_SHA256=%%H"
 if not defined INSTALLER_SHA256 (
@@ -173,13 +144,69 @@ if not defined INSTALLER_SHA256 (
     exit /b 1
 )
 
+echo [7/10] Locating the pinned Node.js toolchain...
+call :find_node
+if not defined NODE_HOME (
+    echo ERROR: Node.js bootstrap did not return a usable toolchain directory.
+    popd >nul
+    exit /b 1
+)
+set "PATH=%NODE_HOME%;%PATH%"
+if not exist "%NODE_HOME%\node.exe" (
+    echo ERROR: Missing dependency: node.exe was not found in "%NODE_HOME%".
+    popd >nul
+    exit /b 1
+)
+if not exist "%NODE_HOME%\npm.cmd" (
+    echo ERROR: Missing dependency: npm.cmd was not found in "%NODE_HOME%".
+    popd >nul
+    exit /b 1
+)
+
+echo [8/10] Packaging the Exchange Auto Installer through isolated Squirrel.Windows staging...
+if defined WST_RELEASE_VERSION (
+    powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\package-exchange.ps1" -NodeHome "%NODE_HOME%" -SourceCommit "%SOURCE_COMMIT%" -Version "%WST_RELEASE_VERSION%"
+) else (
+    powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\package-exchange.ps1" -NodeHome "%NODE_HOME%" -SourceCommit "%SOURCE_COMMIT%"
+)
+set "EXCHANGE_PACKAGE_EXIT=!ERRORLEVEL!"
+if not "!EXCHANGE_PACKAGE_EXIT!"=="0" (
+    echo ERROR: Exchange Auto Installer packaging failed with exit code !EXCHANGE_PACKAGE_EXIT!.
+    popd >nul
+    exit /b !EXCHANGE_PACKAGE_EXIT!
+)
+
+echo [9/10] Verifying Squirrel.Windows setup, RELEASES, full package, provenance, and unsigned state...
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\verify-exchange-package.ps1" -SourceCommit "%SOURCE_COMMIT%"
+set "EXCHANGE_VERIFY_EXIT=!ERRORLEVEL!"
+if not "!EXCHANGE_VERIFY_EXIT!"=="0" (
+    echo ERROR: Exchange Squirrel.Windows output verification failed with exit code !EXCHANGE_VERIFY_EXIT!.
+    popd >nul
+    exit /b !EXCHANGE_VERIFY_EXIT!
+)
+
+echo [10/10] Confirming the checkout still matches the source commit...
+git diff --quiet --ignore-submodules --
+if errorlevel 1 (
+    echo ERROR: Packaging changed tracked files after commit %SOURCE_COMMIT%.
+    popd >nul
+    exit /b 1
+)
+git diff --cached --quiet --ignore-submodules --
+if errorlevel 1 (
+    echo ERROR: Packaging staged tracked changes after commit %SOURCE_COMMIT%.
+    popd >nul
+    exit /b 1
+)
+
 echo Installer build complete.
 echo Source commit: %SOURCE_COMMIT%
-echo Installer: "%INSTALLER%"
-echo Size: %INSTALLER_SIZE% bytes
-echo SHA-256: %INSTALLER_SHA256%
-echo Signature status: UNSIGNED ^(PE certificate table absent^)
-echo This project intentionally does not code-sign release artifacts.
+echo Primary installer: "%INSTALLER%"
+echo Primary installer size: %INSTALLER_SIZE% bytes
+echo Primary installer SHA-256: %INSTALLER_SHA256%
+echo Exchange Squirrel.Windows output: "%EXCHANGE_DIST%\squirrel-windows"
+echo Signature status: UNSIGNED ^(both setup executables and the unpacked Exchange application have no PE certificate table^)
+echo This project intentionally does not code-sign any release artifact.
 
 popd >nul
 exit /b 0
@@ -191,13 +218,10 @@ if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%P
 if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 exit /b 0
 
-:is_known_build_byproduct
-if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" exit /b 0
-if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" exit /b 0
-if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" exit /b 0
-if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" exit /b 0
-if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref" exit /b 0
-exit /b 1
+:find_node
+set "NODE_HOME="
+for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\ensure-node.ps1"`) do set "NODE_HOME=%%I"
+exit /b 0
 
 :validate_candidate_build
 if not exist "%PROJECT_EXE%" exit /b 1
