@@ -60,10 +60,10 @@ try {
             if ($bytes -contains 0) { throw "A counted text extension has NUL bytes without a recognized UTF BOM: $LiteralPath" }
             $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes)
         }
-        $lines = [regex]::Split($text, '\r\n|\n|\r')
-        if ($text -match '(\r\n|\n|\r)$') {
+        $lines = @($text -split "`n", -1)
+        if ($text.EndsWith("`n", [StringComparison]::Ordinal)) {
             $lines = $lines[0..([Math]::Max(0, $lines.Count - 2))]
-            if ($text -match '^(\r\n|\n|\r)$') { $lines = @('') }
+            if ($text -ceq "`n" -or $text -ceq "`r`n") { $lines = @('') }
         }
         $total = if ($text.Length -eq 0) { 0 } else { $lines.Count }
         $nonBlank = @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
