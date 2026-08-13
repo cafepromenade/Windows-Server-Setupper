@@ -5,6 +5,8 @@ set "ROOT=%~dp0"
 set "SOLUTION=%ROOT%Windows-Server-Tools\Windows-Server-Tools.sln"
 set "PROJECT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\Windows-Server-Tools.csproj"
 set "OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\Windows-Server-Tools.exe"
+set "SOLUTION_PLATFORM=Any CPU"
+set "PROJECT_PLATFORM=AnyCPU"
 set "SILENT_MODE=0"
 
 if /i "%SILENT%"=="1" set "SILENT_MODE=1"
@@ -46,7 +48,7 @@ if not defined MSBUILD (
 echo Found MSBuild: "%MSBUILD%"
 
 echo [2/4] Restoring declared NuGet packages...
-"%MSBUILD%" "%SOLUTION%" /t:Restore /m /nologo /verbosity:minimal /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform="Any CPU"
+"%MSBUILD%" "%SOLUTION%" /t:Restore /m /nologo /verbosity:minimal /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform="%SOLUTION_PLATFORM%"
 if errorlevel 1 (
     echo ERROR: Package restore failed for "%SOLUTION%".
     popd >nul
@@ -54,7 +56,7 @@ if errorlevel 1 (
 )
 
 echo [3/4] Building the Release application...
-"%MSBUILD%" "%PROJECT%" /t:Build /m /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="Any CPU"
+"%MSBUILD%" "%PROJECT%" /t:Build /m /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="%PROJECT_PLATFORM%"
 if errorlevel 1 (
     echo ERROR: Release build failed for "%PROJECT%".
     popd >nul
