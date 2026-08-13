@@ -1,10 +1,14 @@
 [CmdletBinding()]
 param(
-    [string]$VersionFile = (Join-Path (Split-Path -Parent $PSScriptRoot) '.node-version')
+    [string]$VersionFile
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if ([string]::IsNullOrWhiteSpace($VersionFile)) {
+    $VersionFile = Join-Path (Split-Path -Parent $PSScriptRoot) '.node-version'
+}
 
 if (-not (Test-Path -LiteralPath $VersionFile -PathType Leaf)) {
     throw "Node version file is missing: $VersionFile"
