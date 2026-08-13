@@ -179,7 +179,8 @@ if not "%SOURCE_IS_CLEAN%"=="1" (
     exit /b 0
 )
 set "BUILD_SHA256="
-for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "(Get-FileHash -LiteralPath '%OUTPUT%' -Algorithm SHA256).Hash"`) do set "BUILD_SHA256=%%H"
+set "WST_HASH_TARGET=%OUTPUT%"
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "BUILD_SHA256=%%H"
 if not defined BUILD_SHA256 exit /b 1
 >"%BUILD_COMMIT_FILE%" echo %SOURCE_COMMIT%
 >"%BUILD_HASH_FILE%" echo %BUILD_SHA256%

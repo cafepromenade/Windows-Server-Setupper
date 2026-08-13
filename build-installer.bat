@@ -133,7 +133,8 @@ if /i not "%SIGNATURE_STATUS%"=="NotSigned" (
 )
 
 echo [6/6] Calculating SHA-256...
-for /f "usebackq delims=" %%H in (`powershell.exe -NoProfile -Command "(Get-FileHash -LiteralPath '%INSTALLER%' -Algorithm SHA256).Hash"`) do set "INSTALLER_SHA256=%%H"
+set "WST_HASH_TARGET=%INSTALLER%"
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "INSTALLER_SHA256=%%H"
 if not defined INSTALLER_SHA256 (
     echo ERROR: Could not calculate the installer SHA-256.
     popd >nul
@@ -168,7 +169,8 @@ set "CURRENT_BUILD_HASH="
 set /p "BUILT_COMMIT=" < "%COMMIT_FILE%"
 set /p "RECORDED_BUILD_HASH=" < "%BUILD_HASH_FILE%"
 if /i not "%BUILT_COMMIT%"=="%SOURCE_COMMIT%" exit /b 1
-for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "(Get-FileHash -LiteralPath '%PROJECT_EXE%' -Algorithm SHA256).Hash"`) do set "CURRENT_BUILD_HASH=%%H"
+set "WST_HASH_TARGET=%PROJECT_EXE%"
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "CURRENT_BUILD_HASH=%%H"
 if not defined CURRENT_BUILD_HASH exit /b 1
 if /i not "%CURRENT_BUILD_HASH%"=="%RECORDED_BUILD_HASH%" exit /b 1
 exit /b 0
