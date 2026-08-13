@@ -48,6 +48,9 @@
     mediaValidation: document.querySelector("#media-validation"),
     chooseMedia: document.querySelector("#choose-media"),
     inspectMedia: document.querySelector("#inspect-media"),
+    cheapLfsVerify: document.querySelector("#cheap-lfs-verify"),
+    cheapLfsDownload: document.querySelector("#cheap-lfs-download"),
+    cheapLfsStatus: document.querySelector("#cheap-lfs-status"),
     mailboxSettings: document.querySelector("#mailbox-settings"),
     runPreflight: document.querySelector("#run-preflight"),
     preflightChecks: document.querySelector("#preflight-checks"),
@@ -64,12 +67,16 @@
     stageRecoveryMessage: document.querySelector("#stage-recovery-message"),
     retryStage: document.querySelector("#retry-stage"),
     resumeFromRecovery: document.querySelector("#resume-from-recovery"),
+    uncertainReconciliation: document.querySelector("#uncertain-reconciliation"),
+    uncertainEvidence: document.querySelector("#uncertain-evidence"),
+    recordReconciliation: document.querySelector("#record-reconciliation"),
     logView: document.querySelector("#log-view"),
     revealLogs: document.querySelector("#reveal-logs"),
     exportLogs: document.querySelector("#export-logs"),
     openCodeRefresh: document.querySelector("#opencode-refresh"),
     openCodeInstall: document.querySelector("#opencode-install"),
     openCodeStatus: document.querySelector("#opencode-status"),
+    openCodeProgress: document.querySelector("#opencode-progress"),
     yoloMode: document.querySelector("#yolo-mode"),
     yoloConfirmationField: document.querySelector("#yolo-confirmation-field"),
     yoloConfirmation: document.querySelector("#yolo-confirmation"),
@@ -89,6 +96,7 @@
     profileWasHydrated: false,
     lastAnnouncedInstallStatus: null,
     repairPlan: null,
+    uncertainStage: null,
     renderQueued: false,
   };
 
@@ -166,6 +174,7 @@
   }
 
   function showNotice(message, kind = "info", persistent = false) {
+    const initiator = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const notice = document.createElement("div");
     notice.className = `notice ${kind}`;
     notice.setAttribute("role", kind === "error" ? "alert" : "status");
@@ -178,13 +187,44 @@
     dismiss.type = "button";
     dismiss.setAttribute("aria-label", "Dismiss notification");
     dismiss.textContent = "×";
-    dismiss.addEventListener("click", () => notice.remove());
+    let timeoutId = null;
+    let remaining = 5500;
+    let startedAt = 0;
+    const remove = () => {
+      window.clearTimeout(timeoutId);
+      notice.remove();
+      if (initiator?.isConnected) initiator.focus();
+    };
+    const resume = () => {
+      if (persistent || kind === "error" || timeoutId || !notice.isConnected) return;
+      startedAt = Date.now();
+      timeoutId = window.setTimeout(remove, remaining);
+    };
+    const pause = () => {
+      if (!timeoutId) return;
+      remaining = Math.max(250, remaining - (Date.now() - startedAt));
+      window.clearTimeout(timeoutId);
+      timeoutId = null;
+    };
+    dismiss.addEventListener("click", remove);
+    notice.addEventListener("mouseenter", pause);
+    notice.addEventListener("mouseleave", resume);
+    notice.addEventListener("focusin", pause);
+    notice.addEventListener("focusout", resume);
     notice.append(dismiss);
     elements.noticeStack.prepend(notice);
 
     if (!persistent && kind !== "error") {
-      window.setTimeout(() => notice.remove(), 5500);
+      resume();
     }
+  }
+
+  function setControlAvailability(control, available, reason = "") {
+    if (!control) return;
+    control.disabled = false;
+    control.setAttribute("aria-disabled", String(!available));
+    if (!available && reason) control.setAttribute("data-disabled-reason", reason);
+    else control.removeAttribute("data-disabled-reason");
   }
 
   function showActionRecovery(label, error, retry) {
@@ -309,6 +349,7 @@
       elements.yoloConfirmation.value = "";
       elements.yoloConfirmationField.classList.add("hidden");
       elements.yoloMode.checked = Boolean(result?.enabled ?? enabled);
+      elements.yoloMode.focus();
       showNotice(`YOLO mode is ${elements.yoloMode.checked ? "enabled for the bounded Exchange repair catalog" : "off"}.`, elements.yoloMode.checked ? "warning" : "success", elements.yoloMode.checked);
       return result;
     });
@@ -516,10 +557,22 @@
       elements.stageRecoveryMessage.textContent = redactSensitiveText(firstDefined(failedStage?.lastError, failedStage?.message, installation.lastError, installation.error, "Use retry for the failed stage, or resume from the last durable stage record."));
     }
 
+    const uncertain = stages.map(asObject).find((stage) => normalizeStatus(stage.status) === "uncertain");
+    model.uncertainStage = uncertain || null;
+    elements.uncertainReconciliation.classList.toggle("hidden", !uncertain);
+    if (uncertain) {
+      elements.uncertainEvidence.textContent = redactSensitiveText(firstDefined(uncertain.indeterminateEvidence?.warning, uncertain.reconciliation, uncertain.lastError, "The prior privileged process may still be active or may have applied changes. A second launch is blocked."));
+      elements.stageRecoveryMessage.textContent = "An indeterminate stage cannot be retried or resumed. Review external Exchange process and setup evidence, then record one explicit outcome below.";
+    }
+
     if (model.lastAnnouncedInstallStatus !== status && (FAILURE_STATUSES.has(status) || COMPLETE_STATUSES.has(status))) {
-      elements.installationSummary.setAttribute("role", "status");
       model.lastAnnouncedInstallStatus = status;
     }
+  }
+
+  function renderOpenCodeProgress() {
+    const progress = asObject(model.state?.openCodeProgress);
+    elements.openCodeProgress.textContent = progress.message ? redactSensitiveText(`${statusLabel(normalizeStatus(progress.phase))}: ${progress.message}`) : "No OpenCode operation is running.";
   }
 
   function logItems() {
@@ -571,20 +624,23 @@
     const cancelRequested = Boolean(firstDefined(installation.cancelRequested, status === "cancelling" || status === "cancel-pending"));
     const planReady = planItems().length > 0 && canInstallFromPreflight();
 
-    elements.chooseMedia.disabled = model.busy.has("media");
-    elements.inspectMedia.disabled = model.busy.has("media") || !elements.mediaPath.value.trim();
-    elements.runPreflight.disabled = model.busy.has("preflight") || isActive;
-    elements.startInstall.disabled = model.busy.has("install") || isActive || canResume || !planReady || !elements.acceptLicense.checked;
+    const uncertain = Boolean(model.uncertainStage || model.state?.requiresReconciliation);
+    setControlAvailability(elements.chooseMedia, !model.busy.has("media"), "Media selection is already in progress.");
+    setControlAvailability(elements.inspectMedia, !model.busy.has("media") && Boolean(elements.mediaPath.value.trim()), model.busy.has("media") ? "Media inspection is already in progress." : "Choose a local media path first.");
+    setControlAvailability(elements.runPreflight, !model.busy.has("preflight") && !isActive, isActive ? "Wait for the active installation stage to stop." : "Preflight is already running.");
+    setControlAvailability(elements.startInstall, !model.busy.has("install") && !isActive && !canResume && !uncertain && planReady && elements.acceptLicense.checked, uncertain ? "Reconcile the indeterminate stage before starting another privileged process." : !elements.acceptLicense.checked ? "Review the plan and select the license acknowledgement." : !planReady ? "Run preflight and resolve every failed check first." : "Installation is already active.");
     elements.resumeInstall.classList.toggle("hidden", !canResume || isActive);
-    elements.resumeInstall.disabled = model.busy.has("install");
+    setControlAvailability(elements.resumeInstall, !model.busy.has("install") && !uncertain, uncertain ? "Reconcile the indeterminate stage before resuming." : "Resume is already in progress.");
     elements.requestCancel.classList.toggle("hidden", !isActive);
-    elements.requestCancel.disabled = model.busy.has("cancel") || cancelRequested || installation.canRequestCancel === false;
+    setControlAvailability(elements.requestCancel, !model.busy.has("cancel") && !cancelRequested && installation.canRequestCancel !== false, cancelRequested ? "Cancellation is already waiting for a safe boundary." : "Cancellation is unavailable for the current stage.");
     elements.safeCancelNote.classList.toggle("hidden", !cancelRequested);
-    elements.retryStage.disabled = model.busy.has("install") || !model.failedStageId;
-    elements.resumeFromRecovery.disabled = model.busy.has("install") || !hasDurableState();
-    elements.exportLogs.disabled = model.busy.has("logs") || logItems().length === 0;
-    elements.revealLogs.disabled = model.busy.has("logs");
-    elements.retryLastAction.disabled = model.busy.size > 0 || !model.lastRetryableAction;
+    setControlAvailability(elements.retryStage, !model.busy.has("install") && Boolean(model.failedStageId) && !uncertain, uncertain ? "Record the reviewed indeterminate outcome before retrying." : "No conclusively failed stage is available.");
+    setControlAvailability(elements.resumeFromRecovery, !model.busy.has("install") && hasDurableState() && !uncertain, uncertain ? "Record the reviewed indeterminate outcome before resuming." : "No durable recovery state is available.");
+    setControlAvailability(elements.exportLogs, !model.busy.has("logs") && logItems().length > 0, "No redacted log entries are available to export.");
+    setControlAvailability(elements.revealLogs, !model.busy.has("logs"), "The log-folder action is already running.");
+    setControlAvailability(elements.retryLastAction, model.busy.size === 0 && Boolean(model.lastRetryableAction), "No failed action is available to retry.");
+    const outcome = document.querySelector('input[name="reconciliation-outcome"]:checked');
+    setControlAvailability(elements.recordReconciliation, Boolean(uncertain && outcome), "Select one reviewed outcome first.");
   }
 
   function hasDurableState() {
@@ -600,6 +656,7 @@
     renderPlan();
     renderStages();
     renderLogs();
+    renderOpenCodeProgress();
     renderControls();
     setAppStatus("ready", displayText(firstDefined(model.state.serviceStatusLabel, model.state.serviceStatus), "Installer service ready"));
     elements.profileSaveState.textContent = "Saved locally";
@@ -626,6 +683,20 @@
   }
 
   function bindActions() {
+    document.addEventListener("click", (event) => {
+      const control = event.target.closest?.('[aria-disabled="true"]');
+      if (!control) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showNotice(control.dataset.disabledReason || "This action is not available yet.", "warning", true);
+    }, true);
+    document.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      const control = event.target.closest?.('[aria-disabled="true"]');
+      if (!control) return;
+      event.preventDefault();
+      showNotice(control.dataset.disabledReason || "This action is not available yet.", "warning", true);
+    }, true);
     elements.retryLastAction.addEventListener("click", () => model.lastRetryableAction?.retry());
 
     elements.chooseMedia.addEventListener("click", () => runAction("media", "Choose Exchange media", async () => {
@@ -668,6 +739,27 @@
     elements.retryStage.addEventListener("click", () => {
       if (!model.failedStageId) return;
       runAction("install", "Retry failed stage", () => api.retryStage(model.failedStageId));
+    });
+    elements.cheapLfsVerify.addEventListener("click", () => runAction("cheap-lfs-verify", "Verify Cheap LFS media metadata", async () => {
+      const result = await api.verifyCheapLfsMedia();
+      elements.cheapLfsStatus.textContent = `Verified ${result.releaseAssetCount} release assets with zero downloaded ISO bytes. Whole ISO: ${result.checked.sizeInBytes} bytes, SHA-256 ${result.checked.sha256}.`;
+      elements.cheapLfsDownload.setAttribute("aria-disabled", "false");
+      elements.cheapLfsDownload.removeAttribute("data-disabled-reason");
+      return result;
+    }, "Cheap LFS metadata verified without downloading the ISO."));
+    elements.cheapLfsDownload.addEventListener("click", () => runAction("cheap-lfs-download", "Download verified Exchange ISO", async () => {
+      const result = await api.hydrateCheapLfsMedia();
+      elements.mediaPath.value = result.path;
+      elements.cheapLfsStatus.textContent = `Hydrated and verified ${result.sizeInBytes} bytes at ${result.path}. SHA-256 ${result.sha256}.`;
+      return result;
+    }, "Exchange ISO hydration completed and its pinned digest matched."));
+
+    for (const option of document.querySelectorAll('input[name="reconciliation-outcome"]')) option.addEventListener("change", renderControls);
+    elements.recordReconciliation.addEventListener("click", () => {
+      const outcome = document.querySelector('input[name="reconciliation-outcome"]:checked')?.value;
+      const stage = model.uncertainStage;
+      if (!outcome || !stage?.id || !stage?.reconciliationToken) return;
+      runAction("reconcile", "Record reviewed stage outcome", () => api.reconcileStage({ stageId: stage.id, token: stage.reconciliationToken, outcome }), "The reviewed stage outcome was recorded. Refresh preflight before continuing.");
     });
 
     elements.requestCancel.addEventListener("click", () => runAction("cancel", "Request safe cancellation", () => api.requestCancel(), "Cancellation requested. The installer will stop at the next safe boundary."));

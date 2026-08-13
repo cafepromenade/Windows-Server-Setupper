@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const {
   PROFILE_KEYS,
   REBOOT_EXIT_CODES,
@@ -11,12 +12,14 @@ const {
   WINDOWS_FEATURES
 } = require('./constants');
 const { inspectExchangeMedia, minimalWindowsEnvironment, powershellPath, runPreflight } = require('./preflight');
+const { acquireMachineMutationLease } = require('./machine-mutation-lease');
 const { runProcess } = require('./process-runner');
 const { redactObject, redactText } = require('./redaction');
 const { StateStore } = require('./state-store');
 
 class InstallerEngine {
   constructor({ userDataDir, defaults, onState }) {
+    this.machineRoot = userDataDir;
     this.store = new StateStore(userDataDir);
     this.state = this.store.load(defaults);
     this.onState = onState || (() => {});
@@ -62,6 +65,11 @@ class InstallerEngine {
       state.detected = result.detected;
       if (!state.profile.targetDomain && result.detected.domain) state.profile.targetDomain = result.detected.domain;
       state.preflight = { status: result.status, checkedAt: result.checkedAt, checks: mapRendererChecks(result.checks) };
+      if (state.phase === 'restart-required' && result.status === 'passed' && state.restartBootMarker && result.detected.bootMarker !== state.restartBootMarker) {
+        state.phase = 'restart-ready';
+        state.rebootRequired = false;
+        state.lastError = null;
+      }
     });
     this.log('preflight-finished', `Preflight ${result.status}.`, result.checks);
     return this.getState().preflight;
@@ -95,6 +103,7 @@ class InstallerEngine {
   async resume() {
     if (this.running) throw new Error('An installation stage is already running.');
     const state = this.getState();
+    assertNoUncertainStage(state);
     if (!state.media || !state.media.ok) throw new Error('Inspect the Exchange media again before resuming.');
     if (state.preflight.status !== 'passed') throw new Error('Run preflight again before resuming.');
     this.update((next) => { next.phase = 'installing'; next.cancelRequested = false; next.lastError = null; });
@@ -105,15 +114,49 @@ class InstallerEngine {
     if (!STAGES.some((stage) => stage.id === stageId)) throw new Error('The requested stage is not in the installation plan.');
     this.update((state) => {
       const stage = state.stages.find((entry) => entry.id === stageId);
-      if (!['failed', 'uncertain', 'cancelled'].includes(stage.status)) throw new Error('Only a stopped stage can be retried.');
+      if (stage.status === 'uncertain') throw new Error('This stage has an indeterminate outcome. Reconcile it before any retry.');
+      if (!['failed', 'cancelled'].includes(stage.status)) throw new Error('Only a conclusively stopped stage can be retried.');
       stage.status = 'pending';
       stage.lastError = null;
-      stage.reconciliation = null;
+      stage.reconciliation = 'A reviewed reconciliation already proved the prior process stopped without applying this stage.';
+      stage.reconciliationToken = null;
+      stage.indeterminateEvidence = null;
       state.phase = 'installing';
       state.lastError = null;
       state.cancelRequested = false;
     });
     return this.runRemaining(stageId);
+  }
+
+  close() { this.store.releaseLease(); }
+
+  reconcileStage(request) {
+    if (this.running) throw new Error('An installation stage is already running.');
+    const stageId = String(request?.stageId || '');
+    const token = String(request?.token || '');
+    const outcome = String(request?.outcome || '');
+    if (!['confirmed-completed', 'confirmed-stopped-no-changes'].includes(outcome)) throw new Error('Choose one explicit reconciliation outcome.');
+    this.update((state) => {
+      const stage = state.stages.find((entry) => entry.id === stageId);
+      if (!stage || stage.status !== 'uncertain') throw new Error('The uncertain stage is missing or has already changed.');
+      if (!token || token !== stage.reconciliationToken) throw new Error('The reconciliation token is stale. Refresh state and review the current evidence.');
+      stage.finishedAt = new Date().toISOString();
+      stage.reconciliationToken = null;
+      if (outcome === 'confirmed-completed') {
+        stage.status = 'completed';
+        stage.lastError = null;
+        stage.reconciliation = 'Administrator explicitly confirmed the prior process completed after reviewing external Exchange evidence.';
+      } else {
+        stage.status = 'failed';
+        stage.lastError = 'Administrator confirmed the prior process stopped and did not apply this stage; retry is now available.';
+        stage.reconciliation = 'Administrator explicitly confirmed the prior process stopped without applying this stage.';
+      }
+      stage.indeterminateEvidence = null;
+      state.phase = outcome === 'confirmed-completed' ? 'review' : 'failed';
+      state.lastError = outcome === 'confirmed-completed' ? null : { stageId, message: stage.lastError, uncertain: false };
+    });
+    this.log('stage-reconciled', `The administrator recorded ${outcome} for the previously indeterminate stage.`, { stageId, outcome });
+    return this.getPublicState();
   }
 
   requestCancel() {
@@ -125,8 +168,11 @@ class InstallerEngine {
 
   async runRemaining(firstStageId = null) {
     if (this.running) throw new Error('An installation stage is already running.');
+    assertNoUncertainStage(this.getState());
     this.running = true;
+    let machineLease = null;
     try {
+      machineLease = await acquireMachineMutationLease(this.machineRoot);
       const definitions = STAGES.filter((stage) => stageEnabled(stage.id, this.getState().profile));
       let reachedFirst = !firstStageId;
       for (const definition of definitions) {
@@ -146,6 +192,7 @@ class InstallerEngine {
       this.log('installation-completed', 'Every selected Exchange installation stage completed.');
       return this.getState();
     } finally {
+      if (machineLease) await machineLease.release();
       this.running = false;
       this.activeAbort = null;
     }
@@ -162,6 +209,8 @@ class InstallerEngine {
         stage.finishedAt = null;
         stage.lastError = null;
         stage.reconciliation = null;
+        stage.reconciliationToken = null;
+        stage.indeterminateEvidence = null;
         state.currentStageId = definition.id;
         state.phase = 'installing';
       });
@@ -181,12 +230,26 @@ class InstallerEngine {
           state.currentStageId = null;
         });
         this.log('stage-completed', definition.title, { stageId: definition.id, exitCode: result.exitCode, rebootRequired: result.rebootRequired });
+        if (result.rebootRequired) {
+          this.update((state) => {
+            state.phase = 'restart-required';
+            state.restartRequiredAt = new Date().toISOString();
+            state.restartBootMarker = state.detected?.bootMarker || null;
+            state.lastError = { stageId: definition.id, message: 'Restart Windows, reopen the installer, run a fresh preflight, and resume from the next durable stage.', uncertain: false };
+          });
+          this.log('restart-required', 'A documented success code requires Windows to restart before the next stage.');
+          return { continue: false };
+        }
         return { continue: true };
       }
 
       if (result.transient && attempts < maximumAttempts) {
         this.log('stage-retrying', `${definition.title} returned a transient result; retrying within the configured bound.`, { stageId: definition.id, attempt: attempts });
         await delay(Math.min(60_000, 5_000 * attempts));
+        if (this.getState().cancelRequested) {
+          this.update((state) => { state.phase = 'cancelled'; state.currentStageId = null; });
+          return { continue: false };
+        }
         continue;
       }
 
@@ -197,6 +260,13 @@ class InstallerEngine {
         stage.exitCode = result.exitCode;
         stage.lastError = result.message;
         stage.reconciliation = result.reconciliation || null;
+        stage.reconciliationToken = result.uncertain ? randomUUID() : null;
+        stage.indeterminateEvidence = result.uncertain ? {
+          reason: result.message,
+          exitCode: result.exitCode,
+          recordedAt: new Date().toISOString(),
+          warning: 'The prior privileged process may still be running or may have applied changes. No second launch is allowed until reviewed reconciliation.'
+        } : null;
         state.phase = result.uncertain ? 'uncertain' : 'failed';
         state.lastError = { stageId: definition.id, message: result.message, uncertain: Boolean(result.uncertain) };
         state.currentStageId = null;
@@ -212,7 +282,7 @@ class InstallerEngine {
     if (definition.kind === 'powershell') return this.runWindowsFeatures(definition, signal);
 
     const media = await inspectExchangeMedia(state.media.path);
-    if (!media.ok || media.sha256 !== state.media.sha256) {
+    if (!media.ok || media.sha256 !== state.media.sha256 || !sameMediaIdentity(media.identity, state.media.identity)) {
       return { ok: false, uncertain: false, exitCode: null, message: 'Exchange media changed or could not be re-verified before execution.' };
     }
     const args = buildExchangeArguments(definition, state.profile);
@@ -231,7 +301,7 @@ class InstallerEngine {
 
   async runWindowsFeatures(definition, signal) {
     const featureLiteral = WINDOWS_FEATURES.map((name) => `'${name.replace(/'/g, "''")}'`).join(',');
-    const script = `$features=@(${featureLiteral}); $result=Install-WindowsFeature -Name $features -IncludeManagementTools -ErrorAction Stop; $result | Select-Object Success,RestartNeeded,ExitCode | ConvertTo-Json -Compress`;
+    const script = `$features=@(${featureLiteral}); $result=Install-WindowsFeature -Name $features -IncludeManagementTools -ErrorAction Stop; $missing=@(Get-WindowsFeature -Name $features | Where-Object Installed -ne $true | Select-Object -ExpandProperty Name); [pscustomobject]@{Success=[bool]$result.Success;RestartNeeded=[string]$result.RestartNeeded;ExitCode=[string]$result.ExitCode;Missing=$missing} | ConvertTo-Json -Compress`;
     const result = await runProcess({
       file: powershellPath(),
       args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'RemoteSigned', '-Command', script],
@@ -240,7 +310,15 @@ class InstallerEngine {
       signal,
       onLine: (source, line) => this.log('process-output', line, { stageId: definition.id, source })
     });
-    return classifyResult(result, definition.id);
+    const classified = classifyResult(result, definition.id);
+    if (!classified.ok) return classified;
+    try {
+      const parsed = JSON.parse(result.stdoutTail.trim().split(/\r?\n/).at(-1));
+      if (parsed.Success !== true || (Array.isArray(parsed.Missing) ? parsed.Missing.length : parsed.Missing ? 1 : 0) > 0) return { ok: false, uncertain: false, exitCode: result.exitCode, message: 'Windows feature installation did not verify every required feature as installed.' };
+      classified.rebootRequired ||= /yes|true/i.test(String(parsed.RestartNeeded));
+      classified.reconciliation = 'Install-WindowsFeature reported success and Get-WindowsFeature verified every required feature is installed.';
+      return classified;
+    } catch { return { ok: false, uncertain: true, exitCode: result.exitCode, message: 'Windows feature completion output was malformed and cannot be trusted.' }; }
   }
 
   async runPostflight(signal) {
@@ -267,6 +345,13 @@ class InstallerEngine {
       stage.finishedAt = new Date().toISOString();
       stage.lastError = 'The app stopped while this stage was running. Its outcome must be reconciled before retrying.';
       stage.reconciliation = 'Durable state proves the stage started but does not prove whether Setup completed.';
+      stage.reconciliationToken = randomUUID();
+      stage.indeterminateEvidence = {
+        reason: stage.lastError,
+        exitCode: stage.exitCode,
+        recordedAt: new Date().toISOString(),
+        warning: 'The prior privileged process may still be running or may have applied changes. No second launch is allowed until reviewed reconciliation.'
+      };
       state.phase = 'uncertain';
       state.currentStageId = null;
       state.lastError = { stageId: stage.id, message: stage.lastError, uncertain: true };
@@ -286,10 +371,11 @@ class InstallerEngine {
     state.status = state.phase;
     state.install = { status: state.phase, stages: state.stages, message: state.lastError?.message || null };
     state.canInstall = state.preflight.status === 'passed';
-    state.canResume = ['failed', 'uncertain', 'cancelled'].includes(state.phase);
+    state.requiresReconciliation = state.stages.some((stage) => stage.status === 'uncertain');
+    state.canResume = !state.requiresReconciliation && ['failed', 'cancelled', 'restart-ready'].includes(state.phase);
     state.install.canResume = state.canResume;
     state.install.durableStateAvailable = state.stages.some((stage) => stage.status !== 'pending');
-    state.logs = readLogTail(state.logPath);
+    state.logs = readLogTail(state.logPath).map((entry) => redactObject(entry));
     return state;
   }
 
@@ -339,7 +425,8 @@ function mapRendererChecks(checks) {
     activeDirectory: map.domain,
     restart: map.reboot,
     organization: map.organization,
-    targetDomain: map['target-domain']
+    targetDomain: map['target-domain'],
+    restartTransition: map['restart-transition']
   };
 }
 
@@ -384,5 +471,15 @@ function readLogTail(logPath) {
 }
 
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+function sameMediaIdentity(left, right) {
+  if (!left || !right) return false;
+  return left.device === right.device && left.inode === right.inode && left.size === right.size && left.birthtimeMs === right.birthtimeMs && left.mtimeMs === right.mtimeMs;
+}
+
+function assertNoUncertainStage(state) {
+  const uncertain = state.stages.find((stage) => stage.status === 'uncertain');
+  if (uncertain) throw new Error(`Stage ${uncertain.id} has an indeterminate outcome. Reconcile it before resuming or starting another privileged process.`);
+}
 
 module.exports = { InstallerEngine };

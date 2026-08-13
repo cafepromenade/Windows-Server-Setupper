@@ -4,6 +4,8 @@ Exchange Auto Installer is an unsigned Windows desktop application that guides a
 
 The app never pre-fills credentials. It accepts only local Exchange media selected through the native picker, records its SHA-256 digest, and requires a valid Microsoft Authenticode signature before enabling the installation path.
 
+The media picker also exposes the repository Cheap LFS route. Metadata verification checks all 13 immutable release parts and downloads zero ISO bytes. The transfer stays disabled until that proof succeeds; the final ISO must match its pinned 6,402,453,504-byte size and SHA-256 digest. Standard Git LFS is never used.
+
 ## What is pre-filled
 
 - Mailbox role
@@ -28,6 +30,10 @@ The optional fixer installs a pinned official OpenCode CLI build, verifies its p
 
 YOLO mode is off by default. It applies only to the fixed Exchange repair action catalog produced by this application; it cannot approve arbitrary commands, credentials, unrelated directories, policy bypasses, or hidden network destinations.
 
+## Settings and local tools
+
+The tabbed **Settings and tools** destination includes persisted language, voice, and appearance preferences, bounded personal-vocabulary JSON, a command palette, local regex builder, honest adapter catalog, loopback-only Ollama status, bundled offline documentation, notification/history surfaces, and Squirrel update controls. See [Local settings and universal tools](docs/universal-features.md). The [universal feature inventory](docs/universal-feature-inventory.md) is fail-closed and marks incomplete implementation or evidence explicitly.
+
 ## Build and package
 
 From `Windows-Server-Tools/Exchange-Auto-Installer`:
@@ -36,6 +42,7 @@ From `Windows-Server-Tools/Exchange-Auto-Installer`:
 npm ci
 npm run build
 npm run package
+npm run verify:package
 ```
 
 `npm run build` produces an unpacked application. `npm run package` produces an unsigned Squirrel.Windows installer and update files under `dist/squirrel-windows/`. No signing certificate is discovered or used. Windows may show an unknown-publisher warning.
@@ -46,6 +53,8 @@ Expected package outputs include:
 - `RELEASES`
 - a full `.nupkg`
 
+The packaged executable and installer use the committed original logo. `assets/app.ico` contains 16, 24, 32, 48, 64, 128, and 256 pixel images generated deterministically from the committed master.
+
 ## Safety boundaries
 
 - Electron renderer isolation is enabled (`contextIsolation`, sandbox, and no Node.js integration).
@@ -54,7 +63,12 @@ Expected package outputs include:
 - Exchange media is re-verified immediately before every Exchange Setup stage.
 - The installer refuses to begin without elevation, a proven Active Directory domain, a clear restart state, and verified local media.
 - OpenCode receives only a bounded redacted diagnostic bundle and cannot directly mutate the server.
+- An interrupted or timed-out privileged process cannot be retried until a one-use reviewed reconciliation decision is recorded.
+- Exit codes requiring restart stop the pipeline until a different Windows boot and fresh preflight are proven.
+- Privileged state and the managed OpenCode executable use protected per-machine application data; ordinary UI preferences stay per-user.
 
-## Verification note
+## Verification
 
-This ultra-speed delivery intentionally does not run tests, linters, runtime UI checks, or captures. Build and packaging commands only prove that an artifact was produced; they do not prove that an Exchange installation completed successfully on a server.
+Run `npm ci`, `npm run verify`, `npm run build`, `npm run package`, and `npm run verify:package`. These checks cover syntax, module contracts, state/reconciliation safety, redaction, media-path refusal, settings/vocabulary bounds, adapter honesty, official OpenCode release metadata, updater states, universal inventory completeness, Squirrel output linkage, hashes, icon container shape, and unsigned status.
+
+They do not prove that a real Exchange installation succeeded on a suitable server. Real built-artifact interaction and capture evidence remain release blockers until recorded in the inventory.

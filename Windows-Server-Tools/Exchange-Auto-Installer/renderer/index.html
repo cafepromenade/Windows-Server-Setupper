@@ -10,12 +10,13 @@
     <title>Exchange Auto Installer</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./renderer.js" defer></script>
+    <script src="./universal-features.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to installer</a>
 
     <header class="top-app-bar">
-      <div class="brand-mark" aria-hidden="true">E</div>
+      <div class="brand-mark"><img src="../assets/logo.svg" alt="" /></div>
       <div class="brand-copy">
         <p class="eyebrow">LOCAL INSTALL ORCHESTRATOR</p>
         <h1>Exchange Auto Installer</h1>
@@ -52,6 +53,10 @@
           <span class="step-number" aria-hidden="true">6</span>
           <span><strong>Repair adviser</strong><small>Optional bounded OpenCode help</small></span>
         </a>
+        <a href="#workspace-tools" data-nav-target="workspace-tools">
+          <span class="step-number" aria-hidden="true">7</span>
+          <span><strong>Settings and tools</strong><small>Customize, search, convert, and recover</small></span>
+        </a>
       </nav>
 
       <main id="main-content" tabindex="-1">
@@ -82,6 +87,15 @@
         </section>
 
         <section class="notice-stack" id="notice-stack" aria-live="polite" aria-atomic="true"></section>
+
+        <section class="update-banner hidden" id="update-banner" role="status" aria-live="polite">
+          <div><strong id="update-title">Update available</strong><p id="update-message"></p></div>
+          <div class="action-row">
+            <a class="button secondary" id="update-notes" href="#workspace-tools">Release notes</a>
+            <button class="button secondary" type="button" id="update-later">Later</button>
+            <button class="button primary" type="button" id="update-restart">Restart to install update</button>
+          </div>
+        </section>
 
         <section class="recovery-banner hidden" id="action-recovery" aria-labelledby="action-recovery-title">
           <div>
@@ -123,8 +137,11 @@
                   />
                   <button class="button secondary" type="button" id="choose-media">Browse…</button>
                   <button class="button tonal" type="button" id="inspect-media">Inspect media</button>
+                  <button class="button secondary" type="button" id="cheap-lfs-verify">Verify Cheap LFS download</button>
+                  <button class="button secondary" type="button" id="cheap-lfs-download" aria-disabled="true" data-disabled-reason="Verify the Cheap LFS release metadata first.">Download verified Exchange ISO</button>
                 </div>
                 <span class="validation-message" id="media-validation"></span>
+                <span class="validation-message" id="cheap-lfs-status" role="status">Cheap LFS metadata has not been verified. No ISO bytes were downloaded.</span>
               </div>
             </fieldset>
 
@@ -309,7 +326,7 @@
             <div>
               <p class="eyebrow">STEP 4</p>
               <h2 id="installation-title">Install in resumable stages</h2>
-              <p id="installation-summary">No installation is running.</p>
+              <p id="installation-summary" role="status" aria-live="polite">No installation is running.</p>
             </div>
             <div class="action-row">
               <button class="button tonal hidden" type="button" id="resume-install">Resume installation</button>
@@ -336,6 +353,13 @@
               <button class="button primary" type="button" id="retry-stage">Retry this stage</button>
               <button class="button secondary" type="button" id="resume-from-recovery">Resume from durable state</button>
             </div>
+            <fieldset class="field-group hidden" id="uncertain-reconciliation">
+              <legend>Required indeterminate-outcome reconciliation</legend>
+              <p id="uncertain-evidence">The prior privileged process may still be running or may already have applied changes. A second launch is blocked.</p>
+              <label class="choice-card"><input type="radio" name="reconciliation-outcome" value="confirmed-completed" /><span><strong>I confirmed this stage completed</strong><small>I reviewed external Exchange setup evidence and want this stage recorded as complete.</small></span></label>
+              <label class="choice-card"><input type="radio" name="reconciliation-outcome" value="confirmed-stopped-no-changes" /><span><strong>I confirmed the process stopped without applying this stage</strong><small>I reviewed process and Exchange evidence; after recording this, an ordinary retry becomes available.</small></span></label>
+              <button class="button danger" type="button" id="record-reconciliation" disabled>Record reviewed outcome</button>
+            </fieldset>
           </aside>
         </section>
 
@@ -369,6 +393,7 @@
             </div>
           </div>
           <p class="status-chip pending" id="opencode-status" role="status">OpenCode has not been checked.</p>
+          <p class="save-state" id="opencode-progress" role="status" aria-live="polite">No OpenCode operation is running.</p>
           <fieldset class="field-group">
             <legend>Approval mode</legend>
             <label class="choice-card warning-choice">
@@ -387,7 +412,136 @@
           </div>
           <div class="log-view" id="repair-output" role="log" aria-live="polite" tabindex="0"><p class="empty-row">No repair-adviser result is available.</p></div>
         </section>
+
+        <section class="surface universal-surface" id="workspace-tools" aria-labelledby="workspace-tools-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">LOCAL SETTINGS AND TOOLS</p>
+              <h2 id="workspace-tools-title">Customize and inspect every local feature</h2>
+              <p>Settings stay on this computer. Private vocabulary, authenticator material, and local tool data are never included in ordinary exports.</p>
+            </div>
+            <button class="button secondary" type="button" id="open-command-palette" aria-keyshortcuts="Control+Shift+F">Open command palette</button>
+          </div>
+
+          <div class="search-with-regex">
+            <label for="settings-search">Search settings and tools</label>
+            <div class="search-row">
+              <input id="settings-search" type="search" autocomplete="off" placeholder="Search labels, descriptions, and values" />
+              <button class="button secondary regex-builder-button" type="button" data-regex-for="settings-search" aria-expanded="false">Regex builder…</button>
+            </div>
+            <p class="search-result-count" id="settings-search-count" role="status">All settings shown</p>
+          </div>
+
+          <div class="nested-tabs" data-tab-workspace="settings">
+            <div class="nested-tab-list" role="tablist" aria-label="Settings and tools sections">
+              <button role="tab" id="settings-tab-general" aria-controls="settings-panel-general" aria-selected="true">General</button>
+              <button role="tab" id="settings-tab-appearance" aria-controls="settings-panel-appearance" aria-selected="false" tabindex="-1">Appearance</button>
+              <button role="tab" id="settings-tab-assistance" aria-controls="settings-panel-assistance" aria-selected="false" tabindex="-1">Assistance</button>
+              <button role="tab" id="settings-tab-converter" aria-controls="settings-panel-converter" aria-selected="false" tabindex="-1">File converter</button>
+              <button role="tab" id="settings-tab-ollama" aria-controls="settings-panel-ollama" aria-selected="false" tabindex="-1">Ollama</button>
+              <button role="tab" id="settings-tab-docs" aria-controls="settings-panel-docs" aria-selected="false" tabindex="-1">Offline documentation</button>
+              <button role="tab" id="settings-tab-history" aria-controls="settings-panel-history" aria-selected="false" tabindex="-1">History and support</button>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-general" aria-labelledby="settings-tab-general">
+              <div class="settings-grid">
+                <label class="field setting-item"><span>Language mode</span><select id="language-mode"><option value="en">English</option><option value="yue">Playful Hong Kong-style Cantonese</option><option value="bilingual">Bilingual</option></select><small>Default: English. Applies immediately and persists.</small></label>
+                <label class="field setting-item"><span>English funny level: <output id="funny-en-output">2</output></span><input id="funny-en" type="range" min="1" max="5" step="1" value="2" /><small>Styles all English messages without changing facts.</small></label>
+                <label class="field setting-item"><span>Cantonese funny level: <output id="funny-yue-output">3</output></span><input id="funny-yue" type="range" min="1" max="5" step="1" value="3" /><small>Styles all Cantonese messages without changing facts.</small></label>
+                <label class="choice-card setting-item"><input id="dialog-emojis" type="checkbox" checked /><span><strong>Show emojis in dialogs and message boxes</strong><small>Emoji is decorative and never replaces the factual copy.</small></span></label>
+                <label class="field setting-item"><span>Application display name</span><input id="app-display-name" type="text" maxlength="80" value="Exchange Auto Installer" /><small>Changes presentation only; package identity and application data never move.</small></label>
+                <label class="choice-card setting-item"><input id="school-mode" type="checkbox" /><span><strong id="school-mode-label">School mode</strong><small>Forces English and temporarily hides playful, personal-vocabulary, and dim-sum features. This is a convenience lock, not a security boundary.</small></span></label>
+                <label class="field setting-item"><span>Rename School mode</span><input id="school-mode-name" type="text" maxlength="80" value="School mode" /><small>Every local label uses the chosen name after saving.</small></label>
+                <div class="field setting-item" id="vocabulary-setting"><span>Local personal-vocabulary JSON</span><div class="action-row"><button class="button secondary" type="button" id="vocabulary-import">Choose JSON…</button><button class="button secondary" type="button" id="vocabulary-clear">Clear private cache</button></div><small id="vocabulary-status">No private file loaded. Original shipped wording is active.</small></div>
+                <div class="field setting-item"><span>Scheduled settings</span><div class="field-grid"><label class="field"><span>Start time</span><input id="schedule-start" type="time" value="09:00" /></label><label class="field"><span>End time</span><input id="schedule-end" type="time" value="17:00" /></label></div><button class="button secondary" type="button" id="schedule-add">Add every-day theme schedule</button><small>Times use this computer's local timezone; cross-midnight windows continue into the next day.</small><ul id="schedule-list" class="compact-list"><li>No schedules saved.</li></ul></div>
+              </div>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-appearance" aria-labelledby="settings-tab-appearance" hidden>
+              <div class="settings-grid">
+                <label class="field setting-item"><span>Theme</span><select id="theme-mode"><option value="system">Follow Windows</option><option value="light">Light</option><option value="dark">Dark</option><option value="contrast">High contrast</option></select><small>Default: follow Windows.</small></label>
+                <label class="field setting-item"><span>Density</span><select id="density-mode"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="spacious">Spacious</option></select><small>Default: comfortable.</small></label>
+                <label class="field setting-item"><span>Accent color</span><input id="accent-color" type="color" value="#1f5f91" /><small id="accent-translation">HEX #1F5F91 · RGB 31, 95, 145</small></label>
+                <label class="field setting-item"><span>UI font family</span><input id="font-family" type="text" list="font-presets" value="system-ui" /><datalist id="font-presets"><option value="system-ui"></option><option value="Segoe UI Variable"></option><option value="Arial"></option><option value="Noto Sans CJK HK"></option></datalist><small>CJK-safe system fallbacks remain active.</small></label>
+                <label class="field setting-item"><span>Font scale</span><input id="font-scale" type="number" min="0.75" max="2" step="0.05" value="1" /><small>Default: 1.00.</small></label>
+                <label class="field setting-item"><span>Font weight</span><input id="font-weight" type="number" min="100" max="900" step="100" value="400" /><small>Default: 400.</small></label>
+                <label class="field setting-item"><span>Tab strip dock</span><select id="tab-dock"><option value="left">Left</option><option value="right">Right</option><option value="top">Top</option><option value="bottom">Bottom</option></select><small>Default: left. Arrow-key direction follows the dock orientation.</small></label>
+                <label class="choice-card setting-item"><input id="reduced-motion" type="checkbox" /><span><strong>Reduce motion</strong><small>Disables non-essential movement while retaining progress facts.</small></span></label>
+                <div class="field setting-item"><span>Application logo</span><div class="logo-editor"><img id="logo-preview" src="../assets/logo.svg" alt="Current Exchange Auto Installer logo" /><label class="button secondary" for="logo-upload">Choose local image…</label><input id="logo-upload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /><button class="button secondary" type="button" id="logo-reset">Reset</button></div><label class="field"><span>Fit</span><select id="logo-fit"><option>contain</option><option>cover</option><option>fill</option></select></label><small id="logo-status">Using the shipped project logo. Custom images remain local.</small></div>
+                <button class="button secondary setting-item" type="button" id="appearance-reset">Reset appearance to shipped defaults</button>
+              </div>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-assistance" aria-labelledby="settings-tab-assistance" hidden>
+              <div class="settings-grid">
+                <label class="choice-card setting-item"><input id="narrator-enabled" type="checkbox" /><span><strong>Spoken event narrator</strong><small>Off by default. Important errors remain factual and are serialized.</small></span></label>
+                <label class="field setting-item"><span>Narrated language</span><select id="narrator-language"><option value="en">English</option><option value="yue">Cantonese</option><option value="bilingual">Both, English then Cantonese</option></select></label>
+                <label class="field setting-item"><span>English voice</span><select id="narrator-voice-en"><option value="auto">Choose automatically</option></select><small id="narrator-status-en">Waiting for installed voice enumeration.</small></label>
+                <label class="field setting-item"><span>Cantonese voice</span><select id="narrator-voice-yue"><option value="auto">Choose automatically</option></select><small id="narrator-status-yue">Waiting for installed voice enumeration.</small></label>
+                <label class="field setting-item"><span>Narration rate</span><input id="narrator-rate" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
+                <label class="field setting-item"><span>Narration pitch</span><input id="narrator-pitch" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
+                <button class="button secondary setting-item" type="button" id="narrator-test">Speak a local test event</button>
+                <div class="field setting-item"><span>Tabbed navigation searches</span><p>Search the current strip, each group, named groups, or every open tab. These controls never inspect page contents.</p><div class="four-searches"><input id="tab-strip-search" type="search" placeholder="Current strip" /><button class="regex-builder-button" data-regex-for="tab-strip-search" type="button">Regex…</button><input id="tab-group-search" type="search" placeholder="Current group" /><button class="regex-builder-button" data-regex-for="tab-group-search" type="button">Regex…</button><input id="group-name-search" type="search" placeholder="Group names" /><button class="regex-builder-button" data-regex-for="group-name-search" type="button">Regex…</button><input id="master-tab-search" type="search" placeholder="All tabs" /><button class="regex-builder-button" data-regex-for="master-tab-search" type="button">Regex…</button></div></div>
+              </div>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-converter" aria-labelledby="settings-tab-converter" hidden>
+              <div class="section-heading"><div><h3>Local file converter</h3><p>Type detection reads bounded bytes. Disabled formats remain visible with the exact missing bundled adapter.</p></div><button class="button secondary" type="button" id="converter-choose">Choose source…</button></div>
+              <p id="converter-source" class="empty-row">No source selected.</p>
+              <div id="converter-catalog" class="adapter-catalog" aria-live="polite"></div>
+              <div class="action-row"><button class="button primary" id="converter-run" type="button" disabled>Convert with selected adapter…</button><button class="button secondary" id="converter-cancel" type="button">Cancel</button></div>
+              <p id="converter-status" role="status">Queue is empty. Processing is bounded to one file in this release.</p>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-ollama" aria-labelledby="settings-tab-ollama" hidden>
+              <div class="section-heading"><div><h3>Local Ollama suite manager</h3><p>Uses only the documented loopback API at <code>127.0.0.1:11434</code>. No cloud proxy is used.</p></div><button class="button primary" id="ollama-refresh" type="button">Refresh local state</button></div>
+              <p id="ollama-status" class="status-chip pending" role="status">Not checked.</p>
+              <div id="ollama-recovery" class="stage-recovery"><div><h3>Runtime recovery</h3><p>If Ollama is missing or stopped, install or start it using its official Windows application, then return here and refresh. Saved local state remains available offline.</p></div></div>
+              <div class="search-with-regex"><label for="ollama-search">Search installed and running models</label><div class="search-row"><input id="ollama-search" type="search" /><button class="button secondary regex-builder-button" data-regex-for="ollama-search" type="button">Regex builder…</button></div></div>
+              <table class="data-table"><thead><tr><th>Model</th><th>State</th><th>Size</th><th>Hardware fit</th></tr></thead><tbody id="ollama-models"><tr><td colspan="4">No verified local models.</td></tr></tbody></table>
+              <details><summary>Batch pulls, chat, and harness launch</summary><p>These controls remain unavailable until a healthy local runtime and a verified complete model catalog are present. The app never invents sample models or accepts arbitrary shell commands.</p><button class="button secondary" type="button" disabled title="Requires a healthy local runtime and verified model metadata">Open batch pull cart</button> <button class="button secondary" type="button" disabled title="Requires a selected installed chat-capable model">Open local chat</button> <button class="button secondary" type="button" disabled title="Requires an allowlisted registered harness profile">Launch harness</button></details>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-docs" aria-labelledby="settings-tab-docs" hidden>
+              <div class="search-with-regex"><label for="docs-search">Search bundled offline documentation</label><div class="search-row"><input id="docs-search" type="search" /><button class="button secondary regex-builder-button" data-regex-for="docs-search" type="button">Regex builder…</button></div></div>
+              <div class="docs-browser"><nav id="docs-list" aria-label="Bundled documentation articles"></nav><article id="docs-article" tabindex="0"><p>Loading bundled articles…</p></article></div>
+            </div>
+
+            <div class="nested-tab-panel" role="tabpanel" id="settings-panel-history" aria-labelledby="settings-tab-history" hidden>
+              <div class="settings-grid">
+                <div class="field setting-item"><span>Automatic updates</span><p id="manual-update-status">Updates are enabled. No check has run in this session.</p><div class="action-row"><button class="button primary" id="manual-update-check" type="button">Check for updates</button><button class="button secondary" id="manual-update-restart" type="button" disabled>Restart to install</button></div><small>Unsigned Squirrel packages use HTTPS feed metadata and hashes. Windows may show an unknown-publisher warning.</small></div>
+                <div class="field setting-item"><span>Notification centre</span><div class="action-row"><button class="button secondary" id="notifications-select-all" type="button">Select all on this page</button><button class="button secondary" id="notifications-export" type="button">Export selected</button><button class="button danger" id="notifications-delete" type="button">Delete selected…</button></div><ul id="notification-history" class="compact-list"><li>No notifications recorded.</li></ul></div>
+                <div class="field setting-item"><span>Local version history</span><div class="field-grid"><label class="field"><span>From</span><input id="history-from" type="date" /></label><label class="field"><span>To</span><input id="history-to" type="date" /></label></div><ul id="settings-history" class="compact-list"><li>No settings changes in this session.</li></ul></div>
+                <div class="field setting-item"><span>Changelog viewer</span><div class="search-with-regex"><label for="changelog-search">Search released changes</label><div class="search-row"><input id="changelog-search" type="search" /><button class="button secondary regex-builder-button" data-regex-for="changelog-search" type="button">Regex builder…</button></div></div><article><h3>1.0.0 · 2026-08-13</h3><p>Guided installation, durable recovery, bounded OpenCode repair, and unsigned Squirrel packaging.</p><a href="https://github.com/cafepromenade/Windows-Server-Setupper/commit/3cd0429d38363fa95869730f2b6e03ab07129958">View completing commit</a></article></div>
+                <div class="field setting-item"><span>Toy locks and Support Tickets</span><p>Toy locks are self-imposed speed bumps, not encryption or a security boundary. Recovery is deleting this app's local data folder yourself.</p><div class="action-row"><button class="button secondary" id="lock-wizard" type="button">Lock this settings surface…</button><button class="button secondary" id="support-ticket" type="button">Create local Support Ticket</button></div><p class="plain-disclosure">Nothing is sent anywhere. No ticket exists outside this computer, no network request is made, no data is collected, and nobody is reading it.</p><ul id="support-ticket-list" class="compact-list"><li>No local tickets.</li></ul></div>
+                <div class="field setting-item"><span>Built-in authenticator</span><p>Registration accepts an <code>otpauth://totp/</code> URI or manual Base32 only after the local credential-vault bridge is available. Secrets never enter ordinary exports.</p><button class="button secondary" type="button" disabled title="Credential-vault storage is unavailable in this release">Register TOTP entry…</button></div>
+                <div class="field setting-item"><span>Export settings and history</span><div class="action-row"><button class="button secondary" id="settings-export" type="button">Export redacted JSON</button><button class="button secondary" id="open-in-vscode" type="button" disabled title="Export a file first, then open it from its destination">Open in Visual Studio Code</button></div><small>Private vocabulary and authenticator secrets are explicitly omitted.</small></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
+
+    <dialog id="regex-dialog" aria-labelledby="regex-title">
+      <form method="dialog" class="regex-dialog-card">
+        <div class="section-heading"><div><p class="eyebrow">ANCHORED SEARCH TOOL</p><h2 id="regex-title">Regex builder</h2><p>JavaScript RegExp dialect. Evaluation is local and bounded.</p></div><button class="button secondary" value="cancel" type="submit">Close</button></div>
+        <label class="field"><span>Raw pattern</span><input id="regex-pattern" type="text" maxlength="512" autocomplete="off" /></label>
+        <div class="field-grid"><label class="field"><span>Literal</span><input id="regex-literal" type="text" maxlength="128" /></label><label class="field"><span>Character class</span><input id="regex-class" type="text" maxlength="64" placeholder="A-Z0-9" /></label></div>
+        <fieldset class="field-group"><legend>Construction</legend><div class="action-row"><button type="button" class="button secondary regex-token" data-token="^">Start anchor</button><button type="button" class="button secondary regex-token" data-token="$">End anchor</button><button type="button" class="button secondary regex-token" data-token="()">Group</button><button type="button" class="button secondary regex-token" data-token="|">Alternation</button><button type="button" class="button secondary regex-token" data-token="+">One or more</button></div></fieldset>
+        <label class="field"><span>Flags</span><input id="regex-flags" type="text" maxlength="5" value="iu" /></label>
+        <label class="field"><span>Sample text</span><textarea id="regex-sample" maxlength="4096" rows="4"></textarea></label>
+        <pre id="regex-feedback" role="status">Enter a pattern to preview matches.</pre>
+        <div class="action-row"><button class="button primary" id="regex-apply" value="default" type="submit">Apply to search</button><button class="button secondary" id="regex-copy" type="button">Copy pattern</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="command-palette" aria-labelledby="command-palette-title">
+      <form method="dialog" class="command-palette-card">
+        <div class="section-heading"><div><h2 id="command-palette-title">Command palette</h2><p>Choose a destination or operate a live setting.</p></div><button class="button secondary" value="cancel">Close</button></div>
+        <div class="search-with-regex"><label for="command-search">Search commands and settings</label><div class="search-row"><input id="command-search" type="search" autofocus /><button class="button secondary regex-builder-button" data-regex-for="command-search" type="button">Regex builder…</button></div></div>
+        <ul id="command-results" class="command-results" role="listbox"></ul>
+      </form>
+    </dialog>
   </body>
 </html>

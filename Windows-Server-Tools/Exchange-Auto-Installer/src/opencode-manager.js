@@ -10,7 +10,8 @@ const { runProcess, terminateProcessTree } = require('./process-runner');
 const { redactObject, redactText } = require('./redaction');
 
 const OPENCODE_VERSION = '1.18.18';
-const OPENCODE_ARCHIVE_SHA256 = '66ad3d31bdc48d7cf16e212da21449bdfe34656cf83a56f682a211c8b78d30ba';
+const OPENCODE_ARCHIVE_SHA256 = 'c6d265376fdb93164013671b0cf402410184f73c34fc15d82d40a16a745b15f4';
+const OPENCODE_ARCHIVE_BYTES = 60_504_740;
 const OPENCODE_ARCHIVE_URL = `https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-windows-x64.zip`;
 const MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024;
 const YOLO_ACKNOWLEDGEMENT = 'ENABLE BOUNDED YOLO';
@@ -112,7 +113,9 @@ function createOpenCodeManager({ userDataDir }) {
     if (!current.compatible) throw new Error('Install or repair the pinned OpenCode build before requesting advice.');
     const runId = randomUUID();
     const workspace = path.join(root, 'runs', runId);
+    const isolatedHome = path.join(workspace, 'isolated-home');
     fs.mkdirSync(workspace, { recursive: true });
+    fs.mkdirSync(isolatedHome, { recursive: true });
     const diagnostic = buildDiagnosticBundle(installerState, request);
     fs.writeFileSync(path.join(workspace, 'diagnostics.json'), `${JSON.stringify(diagnostic, null, 2)}\n`, { mode: 0o600 });
     fs.writeFileSync(path.join(workspace, 'opencode.json'), `${JSON.stringify(restrictedConfig(), null, 2)}\n`, { mode: 0o600 });
@@ -124,7 +127,20 @@ function createOpenCodeManager({ userDataDir }) {
         file: executable,
         args: ['run', prompt, '--format', 'json', '--agent', 'plan', '--dir', workspace],
         cwd: workspace,
-        env: { ...minimalEnvironment(), USERPROFILE: process.env.USERPROFILE, APPDATA: process.env.APPDATA, LOCALAPPDATA: process.env.LOCALAPPDATA, OPENCODE_CONFIG: path.join(workspace, 'opencode.json') },
+        env: {
+          ...minimalEnvironment(),
+          HOME: isolatedHome,
+          USERPROFILE: isolatedHome,
+          APPDATA: path.join(isolatedHome, 'AppData', 'Roaming'),
+          LOCALAPPDATA: path.join(isolatedHome, 'AppData', 'Local'),
+          XDG_CONFIG_HOME: path.join(isolatedHome, '.config'),
+          XDG_DATA_HOME: path.join(isolatedHome, '.local', 'share'),
+          XDG_CACHE_HOME: path.join(isolatedHome, '.cache'),
+          OPENCODE_CONFIG: path.join(workspace, 'opencode.json'),
+          OPENCODE_DISABLE_PROJECT_CONFIG: '1',
+          OPENCODE_DISABLE_GLOBAL_CONFIG: '1',
+          OPENCODE_DISABLE_PLUGINS: '1'
+        },
         timeoutMs: 10 * 60 * 1000,
         signal: activeController.signal,
         privatePaths: [root, workspace, process.env.USERPROFILE],
@@ -180,11 +196,24 @@ function buildDiagnosticBundle(installerState, request) {
     objective: 'Select the smallest allowlisted recovery actions for the current stopped Exchange installation.',
     failedStageId: /^[a-z0-9-]{1,80}$/i.test(String(request?.failedStageId || '')) ? request.failedStageId : null,
     phase: state.phase,
-    preflight: state.preflight,
+    preflight: {
+      status: state.preflight?.status,
+      checks: Object.entries(state.preflight?.checks || {}).slice(0, 20).map(([id, check]) => ({ id, status: check?.status }))
+    },
     stages: Array.isArray(state.stages) ? state.stages.slice(0, 20).map((stage) => ({ id: stage.id, status: stage.status, attempts: stage.attempts, exitCode: stage.exitCode, lastError: stage.lastError, reconciliation: stage.reconciliation })) : [],
-    lastError: state.lastError,
+    lastError: state.lastError ? { stageId: state.lastError.stageId, uncertain: Boolean(state.lastError.uncertain), category: classifyDiagnosticError(state.lastError.message) } : null,
     rebootRequired: Boolean(state.rebootRequired)
   };
+}
+
+function classifyDiagnosticError(message) {
+  const text = String(message || '').toLowerCase();
+  if (text.includes('restart') || text.includes('reboot')) return 'restart-required';
+  if (text.includes('media') || text.includes('signature') || text.includes('digest')) return 'media-verification';
+  if (text.includes('timeout')) return 'timeout';
+  if (text.includes('cancel')) return 'cancelled';
+  if (text.includes('exit code')) return 'process-exit';
+  return 'unspecified';
 }
 
 function parseActionIds(output) {
@@ -224,12 +253,13 @@ async function downloadPinnedArchive(url, destination, maxBytes, redirects = 0) 
       }
       if (response.statusCode !== 200) { response.resume(); reject(new Error(`The official OpenCode download returned HTTP ${response.statusCode}.`)); return; }
       const declared = Number(response.headers['content-length'] || 0);
+      if (declared && declared !== OPENCODE_ARCHIVE_BYTES) { response.resume(); reject(new Error('The OpenCode archive size does not match the pinned official release metadata.')); return; }
       if (declared && declared > maxBytes) { response.resume(); reject(new Error('The OpenCode archive exceeds the download bound.')); return; }
       let received = 0;
       const stream = fs.createWriteStream(destination, { flags: 'wx', mode: 0o600 });
       response.on('data', (chunk) => { received += chunk.length; if (received > maxBytes) request.destroy(new Error('The OpenCode archive exceeded the download bound.')); });
       response.pipe(stream);
-      stream.once('finish', () => stream.close(resolve));
+      stream.once('finish', () => stream.close(() => received === OPENCODE_ARCHIVE_BYTES ? resolve() : reject(new Error('The OpenCode archive byte count does not match the pinned official release metadata.'))));
       stream.once('error', reject);
     });
     request.once('timeout', () => request.destroy(new Error('The official OpenCode download timed out.')));
@@ -255,4 +285,4 @@ function minimalEnvironment() {
   return { SystemRoot: systemRoot, WINDIR: systemRoot, COMSPEC: process.env.COMSPEC || path.join(systemRoot, 'System32', 'cmd.exe'), TEMP: process.env.TEMP || os.tmpdir(), TMP: process.env.TMP || os.tmpdir(), PATH: `${path.join(systemRoot, 'System32')};${path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0')}` };
 }
 
-module.exports = { ALLOWED_REPAIR_ACTIONS, OPENCODE_ARCHIVE_SHA256, OPENCODE_ARCHIVE_URL, OPENCODE_VERSION, YOLO_ACKNOWLEDGEMENT, createOpenCodeManager };
+module.exports = { ALLOWED_REPAIR_ACTIONS, OPENCODE_ARCHIVE_BYTES, OPENCODE_ARCHIVE_SHA256, OPENCODE_ARCHIVE_URL, OPENCODE_VERSION, YOLO_ACKNOWLEDGEMENT, createOpenCodeManager };

@@ -144,7 +144,9 @@ function makeStageState(stage) {
     finishedAt: null,
     exitCode: null,
     lastError: null,
-    reconciliation: null
+    reconciliation: null,
+    reconciliationToken: null,
+    indeterminateEvidence: null
   };
 }
 

@@ -11,11 +11,21 @@ class StateStore {
     this.backupPath = path.join(this.directory, 'installation-state.backup.json');
     this.logPath = path.join(this.directory, 'installation.log');
     this.current = null;
+    this.lockPath = path.join(this.directory, 'installation-state.lock');
+    this.lockFd = null;
   }
 
   load(defaults) {
     fs.mkdirSync(this.directory, { recursive: true });
-    const loaded = this.readCandidate(this.statePath) || this.readCandidate(this.backupPath);
+    this.acquireLease();
+    const primary = this.readCandidate(this.statePath);
+    const backup = this.readCandidate(this.backupPath);
+    const anyExisting = primary.status !== 'missing' || backup.status !== 'missing';
+    const loaded = primary.status === 'valid' ? primary.value : backup.status === 'valid' ? backup.value : null;
+    if (!loaded && anyExisting) {
+      this.preserveInvalidState(primary, backup);
+      throw new Error('Installation state is corrupt or unsupported. Evidence was preserved; use an explicit repair or reset action before continuing.');
+    }
     this.current = loaded || makeInitialState(defaults);
     this.current.logPath = this.logPath;
     this.current.stages = mergeStages(this.current.stages);
@@ -28,17 +38,19 @@ class StateStore {
   readCandidate(candidatePath) {
     try {
       const stat = fs.statSync(candidatePath);
-      if (!stat.isFile() || stat.size > 2_000_000) return null;
+      if (!stat.isFile() || stat.size > 2_000_000) return { status: 'invalid', reason: 'not a bounded regular file' };
       const parsed = JSON.parse(fs.readFileSync(candidatePath, 'utf8'));
-      if (!parsed || parsed.schemaVersion !== SCHEMA_VERSION || !Array.isArray(parsed.stages)) return null;
-      return parsed;
-    } catch {
-      return null;
+      if (!parsed || parsed.schemaVersion !== SCHEMA_VERSION || !Array.isArray(parsed.stages) || !Number.isSafeInteger(parsed.revision)) return { status: 'invalid', reason: 'schema or revision invalid' };
+      return { status: 'valid', value: parsed };
+    } catch (error) {
+      return { status: fs.existsSync(candidatePath) ? 'invalid' : 'missing', reason: error.message };
     }
   }
 
   update(mutator) {
     if (!this.current) throw new Error('Installation state is not loaded.');
+    const disk = this.readCandidate(this.statePath);
+    if (disk.status === 'valid' && disk.value.revision !== this.current.revision) throw new Error('Installation state changed in another runtime; reload before updating.');
     mutator(this.current);
     this.current.revision += 1;
     this.current.updatedAt = new Date().toISOString();
@@ -80,6 +92,29 @@ class StateStore {
 
   snapshot() {
     return JSON.parse(JSON.stringify(this.current));
+  }
+
+  acquireLease() {
+    try {
+      this.lockFd = fs.openSync(this.lockPath, 'wx', 0o600);
+      fs.writeFileSync(this.lockFd, `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`);
+    } catch {
+      throw new Error('Another Exchange installer runtime owns the protected installation state. Close it before continuing.');
+    }
+  }
+
+  releaseLease() {
+    try { if (this.lockFd !== null) fs.closeSync(this.lockFd); } catch { /* Process shutdown keeps the original state authoritative. */ }
+    this.lockFd = null;
+    try { fs.rmSync(this.lockPath, { force: true }); } catch { /* A stale lock is safer than concurrent privileged mutation. */ }
+  }
+
+  preserveInvalidState(primary, backup) {
+    const quarantine = path.join(this.directory, `invalid-state-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+    fs.mkdirSync(quarantine, { recursive: false, mode: 0o700 });
+    if (primary.status !== 'missing') fs.copyFileSync(this.statePath, path.join(quarantine, 'installation-state.json'));
+    if (backup.status !== 'missing') fs.copyFileSync(this.backupPath, path.join(quarantine, 'installation-state.backup.json'));
+    fs.writeFileSync(path.join(quarantine, 'reason.json'), `${JSON.stringify({ primary, backup }, (_key, value) => _key === 'value' ? '[OMITTED]' : value, 2)}\n`, { mode: 0o600 });
   }
 }
 
