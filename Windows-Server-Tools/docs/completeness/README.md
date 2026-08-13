@@ -5,6 +5,7 @@ This category records release-blocking feature inventories for user-facing surfa
 ## Inventories
 
 - [Primary WPF universal-feature inventory](./wpf-universal-feature-inventory.md)
+- [Application branding](../branding/README.md)
 
 ## Verification
 

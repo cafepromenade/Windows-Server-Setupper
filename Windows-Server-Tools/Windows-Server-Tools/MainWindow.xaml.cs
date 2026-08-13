@@ -215,6 +215,7 @@ namespace Windows_Server_Tools
         public MainWindow()
         {
             InitializeComponent();
+            StartLogoService();
             ServerMutationCoordinator.StateChanged += ServerMutationCoordinator_StateChanged;
             ApplyServerMutationControlState();
             Loaded += MainWindow_Loaded;

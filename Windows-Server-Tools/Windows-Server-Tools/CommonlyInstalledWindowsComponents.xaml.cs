@@ -50,6 +50,15 @@ namespace Windows_Server_Tools
         public CommonlyInstalledWindowsComponents()
         {
             InitializeComponent();
+            try
+            {
+                LogoService logoService = LogoService.CreateDefault();
+                AppLogoImage.Source = logoService.LoadPresentationSource(logoService.LoadSettings());
+            }
+            catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
+            {
+                ErrorLog.Write("Load application logo in server features", ex);
+            }
             ServerMutationCoordinator.StateChanged += ServerMutationCoordinator_StateChanged;
             ApplyServerMutationControlState();
         }

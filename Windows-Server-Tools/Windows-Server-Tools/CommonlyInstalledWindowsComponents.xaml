@@ -16,6 +16,7 @@
         <ScrollViewer HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto">
             <Grid MinHeight="160" MinWidth="520">
+        <Image x:Name="AppLogoImage" Source="Assets/windows-server-setupper-logo-master.png" AutomationProperties.Name="Current application logo" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="48" Height="48" Margin="0,0,12,12" Stretch="Uniform"/>
         <Button x:Name="IIS" Content="IIS" AutomationProperties.Name="Install IIS and all of its components" AutomationProperties.HelpText="Installs IIS and verifies the requested Windows feature state." HorizontalAlignment="Left" Height="29" Margin="27,23,0,0" VerticalAlignment="Top" Width="219" Click="IIS_Click"/>
         <Button x:Name="FileAndStorage" Content="File and Storage Services" AutomationProperties.Name="Install File and Storage Services" AutomationProperties.HelpText="Installs and verifies the requested File and Storage Services features." HorizontalAlignment="Left" Height="29" Margin="263,23,0,0" VerticalAlignment="Top" Width="240" Click="FileAndStorage_Click"/>
             </Grid>
