@@ -25,6 +25,7 @@ ArchitecturesAllowed=x64compatible
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#AppExecutable}
 SignedUninstaller=no
+SetupIconFile=..\Windows-Server-Tools\assets\branding\windows-server-setupper.ico
 
 [Files]
 Source: "{#BuildOutput}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"

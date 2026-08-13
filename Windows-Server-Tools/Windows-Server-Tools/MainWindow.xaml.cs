@@ -22,6 +22,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using Task = System.Threading.Tasks.Task;
@@ -54,11 +55,31 @@ namespace Windows_Server_Tools
                 throw new ArgumentException("A server mutation name is required.", nameof(operationName));
             }
 
+            string machineLeasePath;
+            try
+            {
+                machineLeasePath = ProtectedWorkflowState.GetPath(
+                    "Coordination",
+                    "server-mutation.lease");
+            }
+            catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
+            {
+                ErrorLog.Write("Prepare machine-wide server mutation lease", ex);
+                return null;
+            }
+
+            BatchFileLease machineLease = BatchFileLease.Acquire(machineLeasePath, TimeSpan.Zero);
+            if (machineLease == null)
+            {
+                return null;
+            }
+
             long leaseId;
             lock (SyncRoot)
             {
                 if (!string.IsNullOrWhiteSpace(_currentOperation))
                 {
+                    machineLease.Dispose();
                     return null;
                 }
 
@@ -67,7 +88,7 @@ namespace Windows_Server_Tools
             }
 
             RaiseStateChanged();
-            return new MutationLease(leaseId);
+            return new MutationLease(leaseId, machineLease);
         }
 
         private static void Release(long leaseId)
@@ -109,11 +130,13 @@ namespace Windows_Server_Tools
         private sealed class MutationLease : IDisposable
         {
             private readonly long _leaseId;
+            private readonly BatchFileLease _machineLease;
             private bool _disposed;
 
-            public MutationLease(long leaseId)
+            public MutationLease(long leaseId, BatchFileLease machineLease)
             {
                 _leaseId = leaseId;
+                _machineLease = machineLease ?? throw new ArgumentNullException(nameof(machineLease));
             }
 
             public void Dispose()
@@ -125,6 +148,7 @@ namespace Windows_Server_Tools
 
                 _disposed = true;
                 Release(_leaseId);
+                _machineLease.Dispose();
             }
         }
     }
@@ -146,6 +170,10 @@ namespace Windows_Server_Tools
         private string _selectedRecoveryKey;
         private bool _isRetrying;
         private bool _startupStarted;
+        private bool _initialSetupAuthorizationRunning;
+        private bool _initialSetupAuthorizationCancelled;
+        private IInputElement _initialSetupConfirmationFocusOrigin;
+        private ReviewedDestructiveActionGate _initialSetupAuthorizationGate;
         private IInputElement _noticeFocusReturnTarget;
         private bool _focusEnteredRecoveryNotification;
         private bool _noticeOpenedFromReview;
@@ -215,20 +243,14 @@ namespace Windows_Server_Tools
 
             _startupStarted = true;
 
-            await InitializeApplicationAsync();
+            await InitializeApplicationShellAsync();
         }
 
-        private async Task<bool> InitializeApplicationAsync()
+        private async Task<bool> InitializeApplicationShellAsync()
         {
             try
             {
                 ConfigureAvailableServerRoles();
-                bool initialSetupSucceeded = await RunInitialServerSetupAsync();
-                if (!initialSetupSucceeded)
-                {
-                    return false;
-                }
-
                 await HandleCommandLineArgs(Environment.GetCommandLineArgs());
                 ResolveRecovery("application-startup");
                 return true;
@@ -243,7 +265,7 @@ namespace Windows_Server_Tools
                     async () =>
                     {
                         _startupStarted = true;
-                        return await InitializeApplicationAsync();
+                        return await InitializeApplicationShellAsync();
                     });
                 return false;
             }
@@ -263,6 +285,7 @@ namespace Windows_Server_Tools
         private IEnumerable<Button> GetServerMutationControls()
         {
             yield return InstallActiveDirectoryButton;
+            yield return ReviewInitialSetupButton;
             yield return SetStaticIpButton;
             yield return SimpsonsSetupButton;
             yield return InstallChocolateyButton;
@@ -360,7 +383,7 @@ namespace Windows_Server_Tools
                     "initial-server-setup-cleanup",
                     "Initial setup recovery cleanup is incomplete",
                     checkpointFile,
-                    SetStaticIpButton,
+                    ReviewInitialSetupButton,
                     tryImmediately: true);
                 return true;
             }
@@ -369,7 +392,7 @@ namespace Windows_Server_Tools
             const string chocolateyOperationKey = "Install Chocolatey";
             IDisposable mutationLease = TryAcquireServerMutation(
                 "Initial server setup",
-                SetStaticIpButton);
+                ReviewInitialSetupButton);
             if (mutationLease == null)
             {
                 return false;
@@ -388,12 +411,18 @@ namespace Windows_Server_Tools
             _operationsInFlight.Add(chocolateyOperationKey);
             bool staticIpWasEnabled = SetStaticIpButton.IsEnabled;
             bool chocolateyWasEnabled = InstallChocolateyButton.IsEnabled;
+            bool reviewWasEnabled = ReviewInitialSetupButton.IsEnabled;
             object staticIpContent = SetStaticIpButton.Content;
             object chocolateyContent = InstallChocolateyButton.Content;
+            object reviewContent = ReviewInitialSetupButton.Content;
+            ReviewInitialSetupButton.IsEnabled = false;
             SetStaticIpButton.IsEnabled = false;
             InstallChocolateyButton.IsEnabled = false;
+            ReviewInitialSetupButton.Content = "Initial setup running…";
             SetStaticIpButton.Content = "Initial setup running…";
             InstallChocolateyButton.Content = "Included in initial setup…";
+            AutomationProperties.SetName(ReviewInitialSetupButton, "Initial server setup is running");
+            AutomationProperties.SetHelpText(ReviewInitialSetupButton, "Disabled while the reviewed initial setup is running. This control returns when setup stops.");
             AutomationProperties.SetName(SetStaticIpButton, "Initial server setup is running");
             AutomationProperties.SetHelpText(SetStaticIpButton, "Disabled while the initial server setup is running. This control returns when the setup stops.");
             AutomationProperties.SetName(InstallChocolateyButton, "Chocolatey installation is included in the running initial setup");
@@ -401,21 +430,22 @@ namespace Windows_Server_Tools
             ShowRecoveryNotice(
                 "Initial server setup is running",
                 "Completed steps are preserved while the remaining server setup actions run.",
-                SetStaticIpButton);
+                ReviewInitialSetupButton);
             try
             {
-                OperationBatchResult result = await RecoveryRunner.RunAllAsync(new[]
-                {
+                RecoverableOperation[] initialOperations = new[]
+                    {
                     new RecoverableOperation(
                         "Set the current network address as static",
                         SetCurrentAddressStaticAsync,
                         maxAttempts: 2,
                         retrySafety: RetrySafety.Idempotent)
-                }, checkpointFile);
-
-                OperationBatchResult serverTasks = await SolveWindowsTasks(checkpointFile);
-                var combinedResults = result.Results.Concat(serverTasks.Results).ToList();
-                var combined = new OperationBatchResult(combinedResults);
+                    }
+                    .Concat(CreateWindowsTaskOperations(networkOperationKey))
+                    .ToArray();
+                OperationBatchResult combined = await RecoveryRunner.RunAllAsync(
+                    initialOperations,
+                    checkpointFile);
 
                 if (combined.Succeeded)
                 {
@@ -427,7 +457,7 @@ namespace Windows_Server_Tools
                         checkpointCleared
                             ? "All setup steps completed. The completion marker was written only after every step succeeded."
                             : "All setup steps completed. Recovery-state cleanup still needs attention and can be retried without repeating server actions.",
-                        SetStaticIpButton);
+                        ReviewInitialSetupButton);
                     ResolveRecovery("initial-server-setup");
                     if (!checkpointCleared)
                     {
@@ -435,7 +465,7 @@ namespace Windows_Server_Tools
                             "initial-server-setup-cleanup",
                             "Initial setup recovery cleanup is incomplete",
                             checkpointFile,
-                            SetStaticIpButton,
+                            ReviewInitialSetupButton,
                             tryImmediately: false);
                     }
                     return true;
@@ -447,7 +477,7 @@ namespace Windows_Server_Tools
                     combined,
                     checkpointFile,
                     RunInitialServerSetupAsync,
-                    SetStaticIpButton);
+                    ReviewInitialSetupButton);
                 return false;
             }
             finally
@@ -457,8 +487,12 @@ namespace Windows_Server_Tools
                 _operationsInFlight.Remove(chocolateyOperationKey);
                 SetStaticIpButton.Content = staticIpContent;
                 InstallChocolateyButton.Content = chocolateyContent;
+                ReviewInitialSetupButton.Content = reviewContent;
                 SetStaticIpButton.IsEnabled = staticIpWasEnabled;
                 InstallChocolateyButton.IsEnabled = chocolateyWasEnabled;
+                ReviewInitialSetupButton.IsEnabled = reviewWasEnabled;
+                AutomationProperties.SetName(ReviewInitialSetupButton, "Review the initial server setup plan");
+                AutomationProperties.SetHelpText(ReviewInitialSetupButton, "Opens the two-key confirmation without changing this server.");
                 AutomationProperties.SetName(SetStaticIpButton, "Set the current network address as static");
                 AutomationProperties.SetHelpText(SetStaticIpButton, "Sets the current network address as static.");
                 AutomationProperties.SetName(InstallChocolateyButton, "Install Chocolatey");
@@ -475,6 +509,159 @@ namespace Windows_Server_Tools
 
                 mutationLease.Dispose();
             }
+        }
+
+        private void ReviewInitialSetupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_initialSetupAuthorizationRunning
+                || InitialSetupConfirmationPanel.Visibility == Visibility.Visible)
+            {
+                return;
+            }
+
+            _initialSetupConfirmationFocusOrigin = ReviewInitialSetupButton;
+            _initialSetupAuthorizationCancelled = false;
+            _initialSetupAuthorizationGate = new ReviewedDestructiveActionGate();
+            InitialSetupKeyOneCheckBox.IsChecked = false;
+            InitialSetupKeyTwoCheckBox.IsChecked = false;
+            InitialSetupAuthorizationSlider.Value = 0;
+            InitialSetupAuthorizationProgress.Value = 0;
+            MainContentScroll.IsEnabled = false;
+            InitialSetupConfirmationPanel.Visibility = Visibility.Visible;
+            UpdateInitialSetupConfirmationState();
+            Dispatcher.BeginInvoke(new System.Action(() => InitialSetupKeyOneCheckBox.Focus()));
+        }
+
+        private void InitialSetupConfirmationStateChanged(object sender, RoutedEventArgs e)
+        {
+            UpdateInitialSetupConfirmationState();
+        }
+
+        private void InitialSetupAuthorizationSlider_ValueChanged(
+            object sender,
+            RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateInitialSetupConfirmationState();
+        }
+
+        private void UpdateInitialSetupConfirmationState()
+        {
+            if (InitialSetupKeyOneCheckBox == null
+                || InitialSetupKeyTwoCheckBox == null
+                || InitialSetupAuthorizationSlider == null
+                || InitialSetupAuthorizationProgress == null
+                || InitialSetupAuthorizeButton == null
+                || InitialSetupConfirmationStatusText == null)
+            {
+                return;
+            }
+
+            bool bothKeys = InitialSetupKeyOneCheckBox.IsChecked == true
+                && InitialSetupKeyTwoCheckBox.IsChecked == true;
+            InitialSetupAuthorizationSlider.IsEnabled = bothKeys && !_initialSetupAuthorizationRunning;
+            if (!bothKeys && InitialSetupAuthorizationSlider.Value != 0)
+            {
+                InitialSetupAuthorizationSlider.Value = 0;
+            }
+
+            double progress = Math.Max(0, Math.Min(100, InitialSetupAuthorizationSlider.Value));
+            InitialSetupAuthorizationProgress.Value = progress;
+            bool complete = DestructiveActionAuthorization.IsComplete(
+                InitialSetupKeyOneCheckBox.IsChecked == true,
+                InitialSetupKeyTwoCheckBox.IsChecked == true,
+                progress);
+            InitialSetupAuthorizeButton.IsEnabled = complete && !_initialSetupAuthorizationRunning;
+            InitialSetupConfirmationStatusText.Text = !bothKeys
+                ? "Set both independent confirmation keys to enable the slider."
+                : complete
+                    ? "Authorization is complete. Choose Authorize and run initial setup to begin exactly one recovery batch."
+                    : "Confirmation progress: " + ((int)progress) + " of 100. No server change has started.";
+            AutomationProperties.SetName(
+                InitialSetupConfirmationStatusText,
+                InitialSetupConfirmationStatusText.Text);
+            RaiseInitialSetupConfirmationLiveRegionChanged();
+        }
+
+        private async void InitialSetupAuthorizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_initialSetupAuthorizationRunning
+                || _initialSetupAuthorizationGate == null
+                || !_initialSetupAuthorizationGate.TryAuthorize(
+                    InitialSetupKeyOneCheckBox.IsChecked == true,
+                    InitialSetupKeyTwoCheckBox.IsChecked == true,
+                    InitialSetupAuthorizationSlider.Value))
+            {
+                return;
+            }
+
+            _initialSetupAuthorizationRunning = true;
+            UpdateInitialSetupConfirmationState();
+            InitialSetupConfirmationStatusText.Text = "Authorization complete. Starting the reviewed initial setup batch.";
+            RaiseInitialSetupConfirmationLiveRegionChanged();
+            if (SystemParameters.ClientAreaAnimation)
+            {
+                var completionAnimation = new DoubleAnimation(
+                    1.0,
+                    0.45,
+                    TimeSpan.FromMilliseconds(180))
+                {
+                    AutoReverse = true,
+                    RepeatBehavior = new RepeatBehavior(2)
+                };
+                InitialSetupConfirmationPanel.BeginAnimation(OpacityProperty, completionAnimation);
+                await Task.Delay(720);
+            }
+
+            if (_initialSetupAuthorizationCancelled)
+            {
+                _initialSetupAuthorizationRunning = false;
+                return;
+            }
+
+            CloseInitialSetupConfirmation(restoreFocus: false);
+            try
+            {
+                await RunInitialServerSetupAsync();
+            }
+            finally
+            {
+                _initialSetupAuthorizationRunning = false;
+                RestoreMainWindowFocus(_initialSetupConfirmationFocusOrigin);
+            }
+        }
+
+        private void InitialSetupEmergencyExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            _initialSetupAuthorizationCancelled = true;
+            _initialSetupAuthorizationGate?.Cancel();
+            _initialSetupAuthorizationRunning = false;
+            CloseInitialSetupConfirmation(restoreFocus: true);
+        }
+
+        private void CloseInitialSetupConfirmation(bool restoreFocus)
+        {
+            InitialSetupConfirmationPanel.BeginAnimation(OpacityProperty, null);
+            InitialSetupConfirmationPanel.Opacity = 1;
+            InitialSetupConfirmationPanel.Visibility = Visibility.Collapsed;
+            MainContentScroll.IsEnabled = true;
+            InitialSetupKeyOneCheckBox.IsChecked = false;
+            InitialSetupKeyTwoCheckBox.IsChecked = false;
+            InitialSetupAuthorizationSlider.Value = 0;
+            InitialSetupAuthorizationProgress.Value = 0;
+            if (restoreFocus)
+            {
+                RestoreMainWindowFocus(_initialSetupConfirmationFocusOrigin);
+            }
+        }
+
+        private void RaiseInitialSetupConfirmationLiveRegionChanged()
+        {
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                AutomationPeer peer = UIElementAutomationPeer.FromElement(InitialSetupConfirmationStatusText)
+                    ?? UIElementAutomationPeer.CreatePeerForElement(InitialSetupConfirmationStatusText);
+                peer?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+            }));
         }
 
         private static string GetInitialSetupCompletionFile()
@@ -585,7 +772,6 @@ namespace Windows_Server_Tools
             {
                 if (args == null || args.Length <= 1)
                 {
-                    await EnsureChocolateyInstalledAsync();
                     ResolveRecovery("command-line-request");
                     return;
                 }
@@ -2344,7 +2530,16 @@ namespace Windows_Server_Tools
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape && RecoveryNotification.Visibility == Visibility.Visible)
+            if (e.Key == Key.Escape
+                && InitialSetupConfirmationPanel.Visibility == Visibility.Visible)
+            {
+                _initialSetupAuthorizationCancelled = true;
+                _initialSetupAuthorizationGate?.Cancel();
+                _initialSetupAuthorizationRunning = false;
+                CloseInitialSetupConfirmation(restoreFocus: true);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape && RecoveryNotification.Visibility == Visibility.Visible)
             {
                 DismissRecoveryNotification();
                 e.Handled = true;

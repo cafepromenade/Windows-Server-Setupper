@@ -26,6 +26,12 @@ namespace Windows_Server_Tools
 
         public static Task<OperationBatchResult> SolveWindowsTasks(string checkpointFile = null)
         {
+            return RecoveryRunner.RunAllAsync(CreateWindowsTaskOperations(), checkpointFile);
+        }
+
+        private static IReadOnlyList<RecoverableOperation> CreateWindowsTaskOperations(
+            string networkDependency = null)
+        {
             string netshPath = QuoteCommandPath(GetTrustedSystemExecutable("netsh.exe"));
             string powerCfgPath = QuoteCommandPath(GetTrustedSystemExecutable("powercfg.exe"));
             string regPath = QuoteCommandPath(GetTrustedSystemExecutable("reg.exe"));
@@ -76,6 +82,9 @@ if (-not (Get-DhcpServerInDC -DnsName $computerName -ErrorAction SilentlyContinu
     Add-DhcpServerInDC -DnsName $computerName -IPAddress $address;
 }"),
                     maxAttempts: 2,
+                    dependencies: string.IsNullOrWhiteSpace(networkDependency)
+                        ? null
+                        : new[] { networkDependency },
                     retrySafety: RetrySafety.Idempotent),
                 new RecoverableOperation(
                     "Configure the secure-attention sequence",
@@ -91,7 +100,7 @@ if (-not (Get-DhcpServerInDC -DnsName $computerName -ErrorAction SilentlyContinu
                     retrySafety: RetrySafety.Idempotent)
             };
 
-            return RecoveryRunner.RunAllAsync(operations, checkpointFile);
+            return operations;
         }
 
         public static async Task InstallChocolateyAsync()
