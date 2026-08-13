@@ -32,7 +32,9 @@ try {
         if ($normalized -match '(^|/)(packages|node_modules|vendor|third_party|third-party)(/|$)') { return 'Vendored / third-party' }
         if ($normalized -match '(^|/)(bin|obj|dist|artifacts|coverage)(/|$)' -or $normalized -match '\.g\.(cs|i\.cs)$') { return 'Generated output' }
         if ($normalized -match '(^|/)(package-lock\.json|packages\.lock\.json|yarn\.lock|pnpm-lock\.yaml)$') { return 'Lockfiles' }
-        if ($normalized -match '(^|/)(test|tests|__tests__)(/|$)' -or $normalized -match '(Tests?|Spec)\.(cs|js|ts|tsx)$') { return 'Tests' }
+        if ($normalized -match '(^|/)(test|tests|__tests__)(/|$)' -or
+            $normalized -match '(^|/)[^/]+\.(Test|Tests|Spec|Specs)(/|$)' -or
+            $normalized -match '(Tests?|Spec)\.(cs|js|ts|tsx)$') { return 'Tests' }
         if ($extension -in @('.xaml', '.css', '.scss', '.html', '.htm')) { return 'Styles / markup' }
         if ($normalized -match '(^|/)(\.github|scripts|packaging)(/|$)' -or $extension -in @('.bat', '.cmd', '.ps1', '.psd1', '.psm1', '.iss', '.yml', '.yaml')) { return 'Build / release tooling' }
         if ($extension -in @('.md', '.txt') -or $normalized -match '(^|/)docs(/|$)') { return 'Documentation / records' }
