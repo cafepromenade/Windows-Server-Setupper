@@ -5,6 +5,9 @@ set "ROOT=%~dp0"
 set "SOLUTION=%ROOT%Windows-Server-Tools\Windows-Server-Tools.sln"
 set "PROJECT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\Windows-Server-Tools.csproj"
 set "OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\Windows-Server-Tools.exe"
+set "BUILD_COMMIT_FILE=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\source-commit.txt"
+set "BUILD_HASH_FILE=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\source-executable.sha256"
+set "GENERATED_REFERENCE_CACHE=Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache"
 set "SOLUTION_PLATFORM=Any CPU"
 set "PROJECT_PLATFORM=AnyCPU"
 set "WST_REFERENCE_VERSION=1.0.3"
@@ -21,6 +24,7 @@ pushd "%ROOT%" >nul || (
     echo ERROR: Could not enter the repository root: "%ROOT%".
     exit /b 1
 )
+call :capture_source_identity
 
 echo [1/5] Locating Microsoft Build Tools...
 call :find_msbuild
@@ -59,10 +63,11 @@ if not defined FRAMEWORK_PATH (
     )
     echo The targeting pack is absent. Downloading the official Microsoft reference-assembly package from NuGet.org...
     call :install_reference_assemblies
-    if errorlevel 1 (
+    set "REFERENCE_INSTALL_EXIT=!ERRORLEVEL!"
+    if not "!REFERENCE_INSTALL_EXIT!"=="0" (
         echo ERROR: Could not install Microsoft.NETFramework.ReferenceAssemblies.net472 %WST_REFERENCE_VERSION% in the user-owned cache.
         popd >nul
-        exit /b 1
+        exit /b !REFERENCE_INSTALL_EXIT!
     )
     call :find_framework_path
 )
@@ -104,6 +109,14 @@ if "%OUTPUT_SIZE%"=="0" (
     exit /b 1
 )
 
+call :write_build_provenance
+set "PROVENANCE_EXIT=%ERRORLEVEL%"
+if not "%PROVENANCE_EXIT%"=="0" (
+    echo ERROR: The application was built, but exact source provenance could not be recorded.
+    popd >nul
+    exit /b %PROVENANCE_EXIT%
+)
+
 echo Build complete.
 echo Application: "%OUTPUT%"
 echo Size: %OUTPUT_SIZE% bytes
@@ -141,5 +154,35 @@ if not defined FRAMEWORK_PATH if exist "%WST_REFERENCE_CACHE%\build\.NETFramewor
 exit /b 0
 
 :install_reference_assemblies
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $id='microsoft.netframework.referenceassemblies.net472'; $version=$env:WST_REFERENCE_VERSION; $target=[IO.Path]::GetFullPath($env:WST_REFERENCE_CACHE); $base='https://api.nuget.org/v3-flatcontainer/'+$id+'/'+$version+'/'; $packageName=$id+'.'+$version+'.nupkg'; $scratch=Join-Path ([IO.Path]::GetTempPath()) ('wst-net472-'+[Guid]::NewGuid().ToString('N')); $archive=Join-Path $scratch 'reference-assemblies.zip'; $hashFile=Join-Path $scratch 'reference-assemblies.sha512'; $stage=Join-Path $scratch 'expanded'; New-Item -ItemType Directory -Path $stage -Force | Out-Null; try { Invoke-WebRequest -UseBasicParsing -Uri ($base+$packageName) -OutFile $archive; Invoke-WebRequest -UseBasicParsing -Uri ($base+$packageName+'.sha512') -OutFile $hashFile; $expected=(Get-Content -LiteralPath $hashFile -Raw).Trim(); $stream=[IO.File]::OpenRead($archive); try { $actual=[Convert]::ToBase64String(([Security.Cryptography.SHA512]::Create()).ComputeHash($stream)); } finally { $stream.Dispose(); } if ($actual -cne $expected) { throw 'NuGet package SHA-512 verification failed.'; } Expand-Archive -LiteralPath $archive -DestinationPath $stage -Force; $framework=Join-Path $stage 'build\.NETFramework\v4.7.2'; if (-not (Test-Path -LiteralPath (Join-Path $framework 'mscorlib.dll') -PathType Leaf) -or -not (Test-Path -LiteralPath (Join-Path $framework 'System.dll') -PathType Leaf)) { throw 'The package does not contain the expected build/.NETFramework/v4.7.2 reference assemblies.'; } $parent=Split-Path -Parent $target; New-Item -ItemType Directory -Path $parent -Force | Out-Null; if (Test-Path -LiteralPath $target) { $preserved=$target+'.invalid-'+[Guid]::NewGuid().ToString('N'); Move-Item -LiteralPath $target -Destination $preserved; } Move-Item -LiteralPath $stage -Destination $target; } finally { if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue; } }"
-exit /b %ERRORLEVEL%
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $id='microsoft.netframework.referenceassemblies.net472'; $version=$env:WST_REFERENCE_VERSION; $target=[IO.Path]::GetFullPath($env:WST_REFERENCE_CACHE); $flatRoot='https://api.nuget.org/v3-flatcontainer/'; $indexUri=$flatRoot+$id+'/index.json'; $packageUri=$flatRoot+$id+'/'+$version+'/'+$id+'.'+$version+'.nupkg'; $registrationUri='https://api.nuget.org/v3/registration5-semver1/'+$id+'/'+$version+'.json'; $index=Invoke-RestMethod -UseBasicParsing -Uri $indexUri; if (-not ($index.versions -ccontains $version)) { throw ('Pinned version '+$version+' is absent from '+$indexUri); } $registration=Invoke-RestMethod -UseBasicParsing -Uri $registrationUri; if ($registration.packageContent -cne $packageUri) { throw 'NuGet registration metadata did not resolve to the exact lowercase v3 flat-container package URL.'; } $catalog=Invoke-RestMethod -UseBasicParsing -Uri $registration.catalogEntry; if (-not $registration.listed -or -not $catalog.listed -or $catalog.id -ine 'Microsoft.NETFramework.ReferenceAssemblies.net472' -or $catalog.version -cne $version -or $catalog.packageHashAlgorithm -cne 'SHA512' -or [string]::IsNullOrWhiteSpace($catalog.packageHash)) { throw 'NuGet registration or catalog metadata failed validation.'; } $scratch=Join-Path ([IO.Path]::GetTempPath()) ('wst-net472-'+[Guid]::NewGuid().ToString('N')); $archive=Join-Path $scratch 'reference-assemblies.zip'; $stage=Join-Path $scratch 'expanded'; New-Item -ItemType Directory -Path $stage -Force | Out-Null; try { Invoke-WebRequest -UseBasicParsing -Uri $packageUri -OutFile $archive; $stream=[IO.File]::OpenRead($archive); try { $actual=[Convert]::ToBase64String(([Security.Cryptography.SHA512]::Create()).ComputeHash($stream)); } finally { $stream.Dispose(); } if ($actual -cne $catalog.packageHash) { throw 'NuGet package SHA-512 verification failed.'; } Expand-Archive -LiteralPath $archive -DestinationPath $stage -Force; $framework=Join-Path $stage 'build\.NETFramework\v4.7.2'; if (-not (Test-Path -LiteralPath (Join-Path $framework 'mscorlib.dll') -PathType Leaf) -or -not (Test-Path -LiteralPath (Join-Path $framework 'System.dll') -PathType Leaf)) { throw 'The package does not contain the expected build/.NETFramework/v4.7.2 reference assemblies.'; } $parent=Split-Path -Parent $target; New-Item -ItemType Directory -Path $parent -Force | Out-Null; if (Test-Path -LiteralPath $target) { $preserved=$target+'.invalid-'+[Guid]::NewGuid().ToString('N'); Move-Item -LiteralPath $target -Destination $preserved; } Move-Item -LiteralPath $stage -Destination $target; } finally { if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue; } }"
+set "REFERENCE_DOWNLOAD_EXIT=!ERRORLEVEL!"
+exit /b !REFERENCE_DOWNLOAD_EXIT!
+
+:capture_source_identity
+set "SOURCE_COMMIT="
+set "SOURCE_IS_CLEAN=0"
+where git.exe >nul 2>&1 || exit /b 0
+git diff --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%" || exit /b 0
+git diff --cached --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%" || exit /b 0
+set "UNTRACKED_SOURCE="
+for /f "delims=" %%I in ('git ls-files --others --exclude-standard') do if not defined UNTRACKED_SOURCE set "UNTRACKED_SOURCE=%%I"
+if defined UNTRACKED_SOURCE exit /b 0
+for /f "delims=" %%I in ('git rev-parse HEAD 2^>nul') do set "SOURCE_COMMIT=%%I"
+if defined SOURCE_COMMIT set "SOURCE_IS_CLEAN=1"
+exit /b 0
+
+:write_build_provenance
+if not "%SOURCE_IS_CLEAN%"=="1" (
+    if exist "%BUILD_COMMIT_FILE%" del /q "%BUILD_COMMIT_FILE%" >nul 2>&1
+    if exist "%BUILD_HASH_FILE%" del /q "%BUILD_HASH_FILE%" >nul 2>&1
+    echo Build provenance was not recorded because the source checkout was not commit-exact before the build.
+    exit /b 0
+)
+set "BUILD_SHA256="
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "(Get-FileHash -LiteralPath '%OUTPUT%' -Algorithm SHA256).Hash"`) do set "BUILD_SHA256=%%H"
+if not defined BUILD_SHA256 exit /b 1
+>"%BUILD_COMMIT_FILE%" echo %SOURCE_COMMIT%
+>"%BUILD_HASH_FILE%" echo %BUILD_SHA256%
+echo Build source commit: %SOURCE_COMMIT%
+echo Application SHA-256: %BUILD_SHA256%
+exit /b 0

@@ -3,7 +3,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "ROOT=%~dp0"
 set "PROJECT_OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release"
+set "PROJECT_EXE=%PROJECT_OUTPUT%\Windows-Server-Tools.exe"
 set "COMMIT_FILE=%PROJECT_OUTPUT%\source-commit.txt"
+set "BUILD_HASH_FILE=%PROJECT_OUTPUT%\source-executable.sha256"
+set "GENERATED_REFERENCE_CACHE=Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache"
 set "SCRIPT=%ROOT%packaging\WindowsServerTools.iss"
 set "INSTALLER_DIR=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Installer"
 set "SILENT_MODE=0"
@@ -31,13 +34,13 @@ if not defined SOURCE_COMMIT (
     popd >nul
     exit /b 1
 )
-git diff --quiet --ignore-submodules --
+git diff --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%"
 if errorlevel 1 (
     echo ERROR: Tracked files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
     popd >nul
     exit /b 1
 )
-git diff --cached --quiet --ignore-submodules --
+git diff --cached --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%"
 if errorlevel 1 (
     echo ERROR: Staged files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
     popd >nul
@@ -52,14 +55,27 @@ if defined UNTRACKED_SOURCE (
 )
 echo Source commit: %SOURCE_COMMIT%
 
-echo [2/6] Building the exact Release application...
-call "%ROOT%build.bat" /s
-if errorlevel 1 (
-    echo ERROR: The Release application build failed; no installer was created.
-    popd >nul
-    exit /b 1
+echo [2/6] Ensuring an exact Release application build...
+call :validate_candidate_build
+set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
+if "!CANDIDATE_BUILD_EXIT!"=="0" (
+    echo Reusing the existing commit-exact Release application.
+) else (
+    call "%ROOT%build.bat" /s
+    set "BUILD_EXIT=!ERRORLEVEL!"
+    if not "!BUILD_EXIT!"=="0" (
+        echo ERROR: The Release application build failed with exit code !BUILD_EXIT!; no installer was created.
+        popd >nul
+        exit /b !BUILD_EXIT!
+    )
+    call :validate_candidate_build
+    set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
+    if not "!CANDIDATE_BUILD_EXIT!"=="0" (
+        echo ERROR: The Release build did not produce commit-exact executable provenance.
+        popd >nul
+        exit /b !CANDIDATE_BUILD_EXIT!
+    )
 )
->"%COMMIT_FILE%" echo %SOURCE_COMMIT%
 
 echo [3/6] Locating Inno Setup 6...
 call :find_iscc
@@ -72,10 +88,11 @@ if not defined ISCC (
         exit /b 1
     )
     winget install --id JRSoftware.InnoSetup --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-    if errorlevel 1 (
+    set "INNO_INSTALL_EXIT=!ERRORLEVEL!"
+    if not "!INNO_INSTALL_EXIT!"=="0" (
         echo ERROR: Inno Setup installation failed through canonical winget package JRSoftware.InnoSetup.
         popd >nul
-        exit /b 1
+        exit /b !INNO_INSTALL_EXIT!
     )
     call :find_iscc
 )
@@ -88,10 +105,11 @@ echo Found Inno Setup compiler: "%ISCC%"
 
 echo [4/6] Packaging an unsigned installer...
 "%ISCC%" "/DSourceCommit=%SOURCE_COMMIT%" "%SCRIPT%"
-if errorlevel 1 (
+set "ISCC_EXIT=!ERRORLEVEL!"
+if not "!ISCC_EXIT!"=="0" (
     echo ERROR: Inno Setup failed to package "%SCRIPT%".
     popd >nul
-    exit /b 1
+    exit /b !ISCC_EXIT!
 )
 
 set "INSTALLER=%INSTALLER_DIR%\WindowsServerTools-Setup-%SOURCE_COMMIT%.exe"
@@ -138,4 +156,19 @@ set "ISCC="
 if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+exit /b 0
+
+:validate_candidate_build
+if not exist "%PROJECT_EXE%" exit /b 1
+if not exist "%COMMIT_FILE%" exit /b 1
+if not exist "%BUILD_HASH_FILE%" exit /b 1
+set "BUILT_COMMIT="
+set "RECORDED_BUILD_HASH="
+set "CURRENT_BUILD_HASH="
+set /p "BUILT_COMMIT=" < "%COMMIT_FILE%"
+set /p "RECORDED_BUILD_HASH=" < "%BUILD_HASH_FILE%"
+if /i not "%BUILT_COMMIT%"=="%SOURCE_COMMIT%" exit /b 1
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "(Get-FileHash -LiteralPath '%PROJECT_EXE%' -Algorithm SHA256).Hash"`) do set "CURRENT_BUILD_HASH=%%H"
+if not defined CURRENT_BUILD_HASH exit /b 1
+if /i not "%CURRENT_BUILD_HASH%"=="%RECORDED_BUILD_HASH%" exit /b 1
 exit /b 0
