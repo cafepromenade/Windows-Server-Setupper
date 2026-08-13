@@ -1,0 +1,54 @@
+{
+  "name": "exchange-auto-installer",
+  "version": "1.0.0",
+  "description": "A guided, resumable desktop installer for Microsoft Exchange Server",
+  "main": "src/main.js",
+  "author": "Windows Server Tools contributors",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --dir --win --publish never",
+    "package": "electron-builder --win squirrel --publish never"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1"
+  },
+  "devDependencies": {
+    "electron": "43.4.0",
+    "electron-builder": "26.15.3",
+    "electron-builder-squirrel-windows": "26.15.3"
+  },
+  "build": {
+    "appId": "com.windowsservertools.exchangeautoinstaller",
+    "productName": "Exchange Auto Installer",
+    "artifactName": "ExchangeAutoInstaller-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist/squirrel-windows"
+    },
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "forceCodeSigning": false,
+    "win": {
+      "target": [
+        {
+          "target": "squirrel",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "legalTrademarks": ""
+    },
+    "squirrelWindows": {
+      "msi": false,
+      "artifactName": "ExchangeAutoInstaller-${version}-${arch}-Setup.${ext}"
+    }
+  }
+}
