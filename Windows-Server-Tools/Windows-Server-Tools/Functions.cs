@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.AccessControl;
@@ -846,11 +847,13 @@ if (-not (Get-DhcpServerInDC -DnsName $computerName -ErrorAction SilentlyContinu
                             "The pinned Chocolatey package contains too many entries.");
                     }
 
-                    int unixFileType = (entry.ExternalAttributes >> 16) & 0xF000;
-                    if (unixFileType == 0xA000)
+                    int externalAttributes = GetZipExternalAttributes(entry);
+                    int unixFileType = (externalAttributes >> 16) & 0xF000;
+                    bool isReparsePoint = (externalAttributes & (int)FileAttributes.ReparsePoint) != 0;
+                    if (unixFileType == 0xA000 || isReparsePoint)
                     {
                         throw new InvalidDataException(
-                            "The pinned Chocolatey package contains a symbolic link.");
+                            "The pinned Chocolatey package contains a symbolic link or reparse point.");
                     }
 
                     string relativeName = (entry.FullName ?? string.Empty)
@@ -913,6 +916,37 @@ if (-not (Get-DhcpServerInDC -DnsName $computerName -ErrorAction SilentlyContinu
                     }
                 }
             }
+        }
+
+        private static int GetZipExternalAttributes(ZipArchiveEntry entry)
+        {
+            PropertyInfo publicProperty = typeof(ZipArchiveEntry).GetProperty(
+                "ExternalAttributes",
+                BindingFlags.Instance | BindingFlags.Public);
+            object value = publicProperty?.GetValue(entry, null);
+            if (value == null)
+            {
+                FieldInfo frameworkField = typeof(ZipArchiveEntry).GetField(
+                    "_externalFileAttr",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? typeof(ZipArchiveEntry).GetField(
+                        "_externalFileAttributes",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                value = frameworkField?.GetValue(entry);
+            }
+
+            if (value is int)
+            {
+                return (int)value;
+            }
+
+            if (value is uint)
+            {
+                return unchecked((int)(uint)value);
+            }
+
+            throw new InvalidDataException(
+                "The pinned Chocolatey package entry metadata could not be validated safely.");
         }
 
         private static void VerifyDigestValue(

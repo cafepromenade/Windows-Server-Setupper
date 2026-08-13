@@ -1471,7 +1471,7 @@ namespace Windows_Server_Tools
                     || string.Equals(state, "indeterminate", StringComparison.Ordinal))
                 {
                     int attempts = checkpointStore.GetAttempts(operation.Name);
-                    int generation = checkpointStore.GetGeneration(operation.Name);
+                    int persistedGeneration = checkpointStore.GetGeneration(operation.Name);
                     resultsByName[operation.Name] = new OperationResult(
                         operation.Name,
                         false,
@@ -1479,11 +1479,11 @@ namespace Windows_Server_Tools
                         new OperationReconciliationRequiredException(operation.Name, state),
                         blocked: true,
                         indeterminate: true,
-                        userRetryGeneration: generation,
+                        userRetryGeneration: persistedGeneration,
                         recoveryState: state,
                         reconciliationToken: CreateReconciliationToken(
                             operation.Name,
-                            generation,
+                            persistedGeneration,
                             attempts));
                 }
                 else if (string.Equals(state, "failed", StringComparison.Ordinal))
@@ -2323,12 +2323,12 @@ namespace Windows_Server_Tools
                 }
 
                 SECURITY_ATTRIBUTES inheritable = CreateInheritableSecurityAttributes();
-                SafeKernelHandle outputRead = null;
-                SafeKernelHandle outputWrite = null;
-                SafeKernelHandle errorRead = null;
-                SafeKernelHandle errorWrite = null;
-                SafeKernelHandle inputRead = null;
-                SafeKernelHandle inputWrite = null;
+                SafeFileHandle outputRead = null;
+                SafeFileHandle outputWrite = null;
+                SafeFileHandle errorRead = null;
+                SafeFileHandle errorWrite = null;
+                SafeFileHandle inputRead = null;
+                SafeFileHandle inputWrite = null;
                 IntPtr attributeList = IntPtr.Zero;
                 IntPtr handleList = IntPtr.Zero;
                 IntPtr environmentBlock = IntPtr.Zero;
@@ -2544,8 +2544,8 @@ namespace Windows_Server_Tools
             }
 
             private static void CreateRedirectPipe(
-                out SafeKernelHandle parentRead,
-                out SafeKernelHandle childWrite,
+                out SafeFileHandle parentRead,
+                out SafeFileHandle childWrite,
                 SECURITY_ATTRIBUTES attributes)
             {
                 if (!CreatePipe(out parentRead, out childWrite, ref attributes, 0))
@@ -2560,8 +2560,8 @@ namespace Windows_Server_Tools
             }
 
             private static void CreateInputPipe(
-                out SafeKernelHandle childRead,
-                out SafeKernelHandle parentWrite,
+                out SafeFileHandle childRead,
+                out SafeFileHandle parentWrite,
                 SECURITY_ATTRIBUTES attributes)
             {
                 if (!CreatePipe(out childRead, out parentWrite, ref attributes, 0))
@@ -2575,9 +2575,9 @@ namespace Windows_Server_Tools
                 }
             }
 
-            private static SafeKernelHandle CreateNullInput(SECURITY_ATTRIBUTES attributes)
+            private static SafeFileHandle CreateNullInput(SECURITY_ATTRIBUTES attributes)
             {
-                SafeKernelHandle handle = CreateFile(
+                SafeFileHandle handle = CreateFile(
                     "NUL",
                     GenericRead,
                     FileShareRead | FileShareWrite,
@@ -2746,20 +2746,20 @@ namespace Windows_Server_Tools
             [DllImport("kernel32.dll", SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             private static extern bool CreatePipe(
-                out SafeKernelHandle readPipe,
-                out SafeKernelHandle writePipe,
+                out SafeFileHandle readPipe,
+                out SafeFileHandle writePipe,
                 ref SECURITY_ATTRIBUTES pipeAttributes,
                 uint size);
 
             [DllImport("kernel32.dll", SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             private static extern bool SetHandleInformation(
-                SafeKernelHandle handle,
+                SafeFileHandle handle,
                 uint mask,
                 uint flags);
 
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            private static extern SafeKernelHandle CreateFile(
+            private static extern SafeFileHandle CreateFile(
                 string fileName,
                 uint desiredAccess,
                 uint shareMode,
