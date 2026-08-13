@@ -67,7 +67,7 @@ pwsh -NoProfile -File .\scripts\test-release-assets.ps1
 pwsh -NoProfile -File .\scripts\count-lines.ps1
 ```
 
-The first command validates the hand-written job/dependency inventory and proves eight deliberate workflow defects turn the check red. The second proves eleven missing or corrupt Squirrel asset cases turn red. The line counter requires exact committed tracked bytes and reports source, tests, styles/markup, tooling, excluded areas, grand totals, and surviving-line attribution.
+The first command validates the hand-written job/dependency inventory and proves nine deliberate release-contract defects turn the check red. The second proves eleven missing or corrupt Squirrel asset cases turn red. The line counter requires exact committed tracked bytes and reports source, tests, styles/markup, tooling, excluded areas, grand totals, and surviving-line attribution.
 
 </details>
 

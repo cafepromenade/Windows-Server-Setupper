@@ -26,4 +26,4 @@ No bootstrap path installs a signing certificate, changes the user's persistent 
 pwsh -NoProfile -File .\scripts\validate-release-contract.ps1 -SelfTest
 ```
 
-The self-test first validates the real workflow and inventory, then changes eight asserted boundaries in memory one at a time. Every mutation must turn red; restoring the real bytes must remain green.
+The self-test first validates the real workflow and inventory, then changes nine asserted boundaries in memory one at a time. Every mutation must turn red; restoring the real bytes must remain green.
