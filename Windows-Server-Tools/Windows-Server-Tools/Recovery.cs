@@ -117,6 +117,40 @@ namespace Windows_Server_Tools
 
     }
 
+    public static class DestructiveActionAuthorization
+    {
+        public static bool IsComplete(bool firstKey, bool secondKey, double sliderValue)
+        {
+            return firstKey
+                && secondKey
+                && !double.IsNaN(sliderValue)
+                && !double.IsInfinity(sliderValue)
+                && sliderValue >= 100.0;
+        }
+    }
+
+    public sealed class ReviewedDestructiveActionGate
+    {
+        private int _authorizationClaimed;
+        private int _cancelled;
+
+        public bool TryAuthorize(bool firstKey, bool secondKey, double sliderValue)
+        {
+            if (Volatile.Read(ref _cancelled) != 0
+                || !DestructiveActionAuthorization.IsComplete(firstKey, secondKey, sliderValue))
+            {
+                return false;
+            }
+
+            return Interlocked.CompareExchange(ref _authorizationClaimed, 1, 0) == 0;
+        }
+
+        public void Cancel()
+        {
+            Interlocked.Exchange(ref _cancelled, 1);
+        }
+    }
+
     public static class ProtectedWorkflowState
     {
         private const int MaximumTextBytes = 1024 * 1024;
@@ -157,13 +191,19 @@ namespace Windows_Server_Tools
                 throw new ArgumentNullException(nameof(safeSegments));
             }
 
+            // Reject caller-controlled segments before touching the protected root. Invalid
+            // input must not create, repair, or inspect machine-wide state as a side effect.
+            foreach (string segment in safeSegments)
+            {
+                ValidateSegment(segment);
+            }
+
             lock (SyncRoot)
             {
                 EnsureDirectory(RootDirectory);
                 string path = RootDirectory;
                 foreach (string segment in safeSegments)
                 {
-                    ValidateSegment(segment);
                     path = Path.Combine(path, segment);
                 }
 
@@ -1510,6 +1550,30 @@ namespace Windows_Server_Tools
                     continue;
                 }
 
+                if (resultsByName.Values.Any(previousResult => previousResult.Indeterminate))
+                {
+                    var barrier = new OperationDependencyException(
+                        operation.Name,
+                        resultsByName.Values
+                            .Where(previousResult => previousResult.Indeterminate)
+                            .Select(previousResult => previousResult.Name)
+                            .ToList());
+                    checkpointStore?.Record(
+                        operation.Name,
+                        "blocked",
+                        0,
+                        checkpointStore.GetGeneration(operation.Name),
+                        barrier);
+                    resultsByName[operation.Name] = new OperationResult(
+                        operation.Name,
+                        false,
+                        0,
+                        barrier,
+                        blocked: true,
+                        userRetryGeneration: checkpointStore?.GetGeneration(operation.Name) ?? 0);
+                    continue;
+                }
+
                 string persistedState = checkpointStore?.GetState(operation.Name);
                 if (string.Equals(persistedState, "running", StringComparison.Ordinal)
                     || string.Equals(persistedState, "indeterminate", StringComparison.Ordinal))
@@ -2436,14 +2500,16 @@ namespace Windows_Server_Tools
                     Encoding outputEncoding = startInfo.StandardOutputEncoding ?? Console.OutputEncoding;
                     Encoding errorEncoding = startInfo.StandardErrorEncoding ?? Console.OutputEncoding;
                     var outputReader = new StreamReader(
-                        new FileStream(outputRead, FileAccess.Read, 4096, true),
+                        // CreatePipe returns synchronous handles. Marking one asynchronous makes
+                        // FileStream reject it before the suspended child can be resumed.
+                        new FileStream(outputRead, FileAccess.Read, 4096, false),
                         outputEncoding,
                         true,
                         4096,
                         false);
                     outputRead = null;
                     var errorReader = new StreamReader(
-                        new FileStream(errorRead, FileAccess.Read, 4096, true),
+                        new FileStream(errorRead, FileAccess.Read, 4096, false),
                         errorEncoding,
                         true,
                         4096,
@@ -2453,7 +2519,7 @@ namespace Windows_Server_Tools
                     if (inputWrite != null)
                     {
                         inputWriter = new StreamWriter(
-                            new FileStream(inputWrite, FileAccess.Write, 4096, true),
+                            new FileStream(inputWrite, FileAccess.Write, 4096, false),
                             Console.InputEncoding,
                             4096,
                             false)
@@ -3496,6 +3562,40 @@ namespace Windows_Server_Tools
                 return CheckpointLoadResult.Empty();
             }
 
+            if (File.Exists(path))
+            {
+                CheckpointSnapshot primary;
+                try
+                {
+                    primary = Parse(path);
+                }
+                catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
+                {
+                    ErrorLog.Write("Read canonical recovery state", ex);
+                    return CheckpointLoadResult.Corrupt(PersistCorruptionMarker(path));
+                }
+
+                foreach (string residue in candidates.Where(candidate =>
+                    !string.Equals(candidate, path, StringComparison.OrdinalIgnoreCase)))
+                {
+                    try
+                    {
+                        Parse(residue);
+                    }
+                    catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
+                    {
+                        ErrorLog.Write("Discard invalid transient recovery residue", ex);
+                        QuarantineTransientResidue(path, residue);
+                    }
+                }
+
+                return CheckpointLoadResult.Valid(
+                    Clone(primary.Records),
+                    primary.SourcePath,
+                    primary.LastPreparedRequestId,
+                    primary.LastPreparedRequestDigest);
+            }
+
             var valid = new List<CheckpointSnapshot>();
             var invalid = new List<string>();
             foreach (string candidate in candidates)
@@ -3518,17 +3618,6 @@ namespace Windows_Server_Tools
                     string.IsNullOrWhiteSpace(evidenceToken)
                         ? evidenceToken
                         : ReadCorruptionEvidenceToken(CorruptionMarkerPath(path)));
-            }
-
-            CheckpointSnapshot primary = valid.FirstOrDefault(snapshot =>
-                string.Equals(snapshot.SourcePath, path, StringComparison.OrdinalIgnoreCase));
-            if (primary != null)
-            {
-                return CheckpointLoadResult.Valid(
-                    Clone(primary.Records),
-                    primary.SourcePath,
-                    primary.LastPreparedRequestId,
-                    primary.LastPreparedRequestDigest);
             }
 
             if (valid.Count != 1)
@@ -4067,6 +4156,28 @@ namespace Windows_Server_Tools
             }
         }
 
+        private static void QuarantineTransientResidue(string primaryPath, string residuePath)
+        {
+            try
+            {
+                if (!File.Exists(residuePath))
+                {
+                    return;
+                }
+
+                string destination = primaryPath
+                    + ".discarded-residue-"
+                    + DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture)
+                    + "-"
+                    + Guid.NewGuid().ToString("N");
+                File.Move(residuePath, destination);
+            }
+            catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
+            {
+                ErrorLog.Write("Quarantine invalid transient recovery residue", ex);
+            }
+        }
+
         private static string CorruptionMarkerPath(string path)
         {
             return path + ".corrupt";
@@ -4399,12 +4510,14 @@ namespace Windows_Server_Tools
             try
             {
                 string directory = Path.GetDirectoryName(lockPath);
-                if (!string.IsNullOrWhiteSpace(directory))
+                if (ProtectedWorkflowState.IsProtectedPath(lockPath))
+                {
+                    ProtectedWorkflowState.PrepareProtectedFilePath(lockPath);
+                }
+                else if (!string.IsNullOrWhiteSpace(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
-
-                ProtectedWorkflowState.PrepareProtectedFilePath(lockPath);
             }
             catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
             {

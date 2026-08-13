@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:Windows_Server_Tools"
         mc:Ignorable="d"
         Title="Commonly installed Windows components"
+        Icon="Assets/windows-server-setupper.ico"
         Height="450"
         Width="800"
         MinHeight="260"

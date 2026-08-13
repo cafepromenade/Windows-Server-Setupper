@@ -76,6 +76,7 @@ namespace Windows_Server_Tools.Tests
             await StaleUserRetryTokenCannotResetNewerFailure();
             await IndeterminateTimeoutRequiresExplicitReconciliation();
             await GenericTimeoutRequiresExplicitReconciliation();
+            await IndeterminateOutcomeBlocksLaterIndependentMutations();
             await InterruptedRunningStateRequiresExplicitReconciliation();
             await InterruptedAutomaticRetryHonorsCurrentPolicyAndBudget();
             await CorruptStateBlocksEveryReplay();
@@ -85,6 +86,7 @@ namespace Windows_Server_Tools.Tests
             await NewerCorruptStateCannotBeOverriddenByStaleValidBackup();
             await CorruptPrimaryCannotBeOverriddenByFutureDatedCandidate();
             await ValidPrimaryRemainsAuthoritativeOverFutureDatedBackup();
+            await ValidPrimaryQuarantinesInvalidTransientResidue();
             await RejectsMalformedCheckpointSemantics();
             await PersistenceFailureBlocksBeforeAction();
             await SuccessPersistenceFailureIsIndeterminate();
@@ -102,7 +104,10 @@ namespace Windows_Server_Tools.Tests
             ProtectedWorkflowStateRejectsUnsafePaths();
             ClassifiesRecoverableAndFatalExceptions();
             ParsesCommandNamesSafely();
+            DestructiveAuthorizationRequiresBothKeysFullRangeAndOneClaim();
             ChecksUiRecoverySourceContracts();
+            ChecksWpfDependencyContracts();
+            ChecksWpfLogoContracts();
         }
 
         private static async Task RetriesOnlyExplicitlyIdempotentWork()
@@ -394,6 +399,38 @@ namespace Windows_Server_Tools.Tests
             }, stateFile);
             Check(runs == 1 && restart.Results.Single().Indeterminate,
                 "restart should preserve a generic timeout as reconciliation-only work");
+        }
+
+        private static async Task IndeterminateOutcomeBlocksLaterIndependentMutations()
+        {
+            string directory = NewTemporaryDirectory();
+            string stateFile = Path.Combine(directory, "indeterminate-barrier.steps");
+            int laterRuns = 0;
+            OperationBatchResult result = await RecoveryRunner.RunAllAsync(new[]
+            {
+                new RecoverableOperation("uncertain mutation", () =>
+                {
+                    throw new ExternalProcessException(
+                        "uncertain mutation",
+                        -1,
+                        string.Empty,
+                        string.Empty,
+                        timedOut: true,
+                        terminationConfirmed: false,
+                        indeterminate: true,
+                        innerException: null);
+                }),
+                new RecoverableOperation("later independent mutation", () =>
+                {
+                    laterRuns++;
+                    return Task.CompletedTask;
+                })
+            }, stateFile);
+
+            Check(result.Results[0].Indeterminate
+                && result.Results[1].Blocked
+                && laterRuns == 0,
+                "an indeterminate mutation should block every later mutation until explicit reconciliation");
         }
 
         private static async Task InterruptedRunningStateRequiresExplicitReconciliation()
@@ -746,6 +783,36 @@ namespace Windows_Server_Tools.Tests
 
             Check(runs == 0 && result.Results.Single().Blocked && result.Results.Single().Indeterminate,
                 "a valid canonical primary should stay authoritative over a future-dated stale backup");
+        }
+
+        private static async Task ValidPrimaryQuarantinesInvalidTransientResidue()
+        {
+            string directory = NewTemporaryDirectory();
+            string stateFile = Path.Combine(directory, "valid-primary-residue.steps");
+            int runs = 0;
+            RecoverableOperation operation = new RecoverableOperation(
+                "completed mutation",
+                () => { runs++; return Task.CompletedTask; });
+            OperationBatchResult first = await RecoveryRunner.RunAllAsync(new[] { operation }, stateFile);
+            string residue = stateFile + ".tmp." + Guid.NewGuid().ToString("N");
+            File.WriteAllText(residue, "truncated crash-left bytes");
+
+            OperationBatchResult second = await RecoveryRunner.RunAllAsync(new[] { operation }, stateFile);
+            string[] quarantined = Directory.GetFiles(
+                directory,
+                Path.GetFileName(stateFile) + ".discarded-residue-*");
+            OperationBatchResult third = await RecoveryRunner.RunAllAsync(new[] { operation }, stateFile);
+
+            Check(first.Succeeded
+                && second.Succeeded
+                && second.Results.Single().Resumed
+                && third.Succeeded
+                && runs == 1,
+                "a valid canonical primary should resume without replay despite invalid transient residue");
+            Check(!File.Exists(stateFile + ".corrupt")
+                && !File.Exists(residue)
+                && quarantined.Length == 1,
+                "invalid transient residue beside a valid primary should be quarantined outside candidate discovery without a corruption marker");
         }
 
         private static async Task RejectsMalformedCheckpointSemantics()
@@ -1274,6 +1341,27 @@ namespace Windows_Server_Tools.Tests
                 "a command name should be trimmed and normalized without parsing credential-shaped arguments");
         }
 
+        private static void DestructiveAuthorizationRequiresBothKeysFullRangeAndOneClaim()
+        {
+            Check(!DestructiveActionAuthorization.IsComplete(false, false, 100)
+                && !DestructiveActionAuthorization.IsComplete(true, false, 100)
+                && !DestructiveActionAuthorization.IsComplete(false, true, 100)
+                && !DestructiveActionAuthorization.IsComplete(true, true, 99)
+                && DestructiveActionAuthorization.IsComplete(true, true, 100),
+                "destructive authorization should require both independent keys and the complete slider range");
+
+            var gate = new ReviewedDestructiveActionGate();
+            Check(!gate.TryAuthorize(true, true, 99)
+                && gate.TryAuthorize(true, true, 100)
+                && !gate.TryAuthorize(true, true, 100),
+                "one reviewed destructive-action gate should authorize exactly one batch");
+
+            var cancelled = new ReviewedDestructiveActionGate();
+            cancelled.Cancel();
+            Check(!cancelled.TryAuthorize(true, true, 100),
+                "emergency cancellation should permanently prevent that confirmation instance from authorizing a mutation");
+        }
+
         private static void ChecksUiRecoverySourceContracts()
         {
             string repositoryRoot = FindRepositoryRoot();
@@ -1323,6 +1411,28 @@ namespace Windows_Server_Tools.Tests
 
             string mainXaml = File.ReadAllText(xamlFiles[0]);
             string secondaryXaml = File.ReadAllText(xamlFiles[1]);
+            int shellStart = mainWindow.IndexOf("private async Task<bool> InitializeApplicationShellAsync()", StringComparison.Ordinal);
+            int shellEnd = mainWindow.IndexOf("private void ConfigureAvailableServerRoles()", shellStart, StringComparison.Ordinal);
+            string startupShell = shellStart >= 0 && shellEnd > shellStart
+                ? mainWindow.Substring(shellStart, shellEnd - shellStart)
+                : string.Empty;
+            Check(!startupShell.Contains("RunInitialServerSetupAsync")
+                && !startupShell.Contains("EnsureChocolateyInstalledAsync")
+                && mainWindow.Contains("_initialSetupAuthorizationGate.TryAuthorize")
+                && mainWindow.Contains("await RunInitialServerSetupAsync()"),
+                "normal window startup should remain read-only and the reviewed gate should be the only direct initial-setup launch route");
+            Check(mainXaml.Contains("x:Name=\"InitialSetupKeyOneCheckBox\"")
+                && mainXaml.Contains("x:Name=\"InitialSetupKeyTwoCheckBox\"")
+                && mainXaml.Contains("x:Name=\"InitialSetupAuthorizationSlider\"")
+                && mainXaml.Contains("Minimum=\"0\"")
+                && mainXaml.Contains("Maximum=\"100\"")
+                && mainXaml.Contains("x:Name=\"InitialSetupEmergencyExitButton\"")
+                && mainXaml.Contains("AutomationProperties.LiveSetting=\"Assertive\""),
+                "the native initial-setup confirmation should expose two keys, a full-range slider, emergency exit, and an assertive status region");
+            Check(mainXaml.Contains("HorizontalScrollBarVisibility=\"Disabled\"")
+                && mainXaml.Contains("<StackPanel Margin=\"16\" MaxWidth=\"720\">")
+                && !mainXaml.Contains("<Grid MinWidth=\"729\""),
+                "the main surface should reflow vertically without a fixed-width canvas or page-level horizontal scrolling");
             Check(mainWindow.Contains("FromElement(RecoveryMessageText)")
                 && !mainWindow.Contains("FromElement(RecoveryNotification)"),
                 "the main live-region event should target the TextBlock automation peer, never the peerless Border");
@@ -1355,6 +1465,12 @@ namespace Windows_Server_Tools.Tests
 
             string functions = File.ReadAllText(Path.Combine(project, "Functions.cs"));
             string combined = mainWindow + Environment.NewLine + functions;
+            Check(mainWindow.Contains("ProtectedWorkflowState.GetPath(")
+                && mainWindow.Contains("\"Coordination\"")
+                && mainWindow.Contains("\"server-mutation.lease\"")
+                && mainWindow.Contains("BatchFileLease.Acquire(machineLeasePath, TimeSpan.Zero)")
+                && mainWindow.Contains("_machineLease.Dispose()"),
+                "the process-local mutation coordinator should also own one protected machine-wide file lease for its full lifetime");
             Check(!combined.Contains("UsefulTools.Command.RunCommandHidden"),
                 "production recovery paths should not call a hidden command runner that can mask exits");
             Check(!combined.Contains("Chocolatey.InstallChocolatey"),
@@ -1374,6 +1490,10 @@ namespace Windows_Server_Tools.Tests
                 && !combined.Contains("--ignore-checksums")
                 && !functions.Contains("Invoke-Expression $installScript"),
                 "Chocolatey installation should verify a pinned package and retain package checksum enforcement");
+            Check(mainWindow.Contains("CreateWindowsTaskOperations(networkOperationKey)")
+                && functions.Contains("dependencies: string.IsNullOrWhiteSpace(networkDependency)")
+                && functions.Contains("new[] { networkDependency }"),
+                "DNS and DHCP installation should declare the static-network operation as its initial-setup dependency");
             Check(!mainWindow.Contains(@"C:\Users\Administrator\Desktop\Setup.exe")
                 && mainWindow.Contains("StageContinuationExecutable")
                 && mainWindow.Contains("VerifyContinuationInvocation")
@@ -1400,6 +1520,98 @@ namespace Windows_Server_Tools.Tests
             Check(secondaryWindow.Contains("if (-not $installResult.Success)")
                 && secondaryWindow.Contains("$notInstalled"),
                 "feature installation should reject an unsuccessful command result and verify every requested feature");
+        }
+
+        private static void ChecksWpfDependencyContracts()
+        {
+            string repositoryRoot = FindRepositoryRoot();
+            if (repositoryRoot == null)
+            {
+                Check(false, "the WPF dependency-contract test should locate the repository root");
+                return;
+            }
+
+            string project = Path.Combine(repositoryRoot, "Windows-Server-Tools", "Windows-Server-Tools");
+            string packages = File.ReadAllText(Path.Combine(project, "packages.config"));
+            string projectFile = File.ReadAllText(Path.Combine(project, "Windows-Server-Tools.csproj"));
+            string appConfig = File.ReadAllText(Path.Combine(project, "App.config"));
+
+            Check(!packages.Contains("id=\"System.Net.Http\"")
+                && !packages.Contains("id=\"System.Text.RegularExpressions\""),
+                "the WPF manifest should use the .NET Framework 4.7.2 HTTP and regex assemblies instead of advisory-bearing compatibility packages");
+            Check(projectFile.Contains("<Reference Include=\"System.Net.Http\" />")
+                && !projectFile.Contains("System.Net.Http.4.3.0")
+                && !projectFile.Contains("System.Text.RegularExpressions.4.3.0"),
+                "the WPF project should resolve HTTP and regex support from the declared framework target");
+            Check(packages.Contains("id=\"Newtonsoft.Json\" version=\"13.0.3\"")
+                && projectFile.Contains("Newtonsoft.Json.13.0.3\\lib\\net45\\Newtonsoft.Json.dll"),
+                "the WPF project should own one explicit Newtonsoft.Json 13.0.3 reference instead of accepting the older bundled copy");
+            Check(appConfig.Contains("oldVersion=\"0.0.0.0-13.0.0.0\"")
+                && appConfig.Contains("newVersion=\"13.0.0.0\""),
+                "the application binding policy should unify Newtonsoft.Json consumers on the selected 13.0 assembly");
+        }
+
+        private static void ChecksWpfLogoContracts()
+        {
+            string repositoryRoot = FindRepositoryRoot();
+            if (repositoryRoot == null)
+            {
+                Check(false, "the WPF logo-contract test should locate the repository root");
+                return;
+            }
+
+            string projectRoot = Path.Combine(repositoryRoot, "Windows-Server-Tools");
+            string appRoot = Path.Combine(projectRoot, "Windows-Server-Tools");
+            string iconPath = Path.Combine(projectRoot, "assets", "branding", "windows-server-setupper.ico");
+            string masterPath = Path.Combine(projectRoot, "assets", "branding", "windows-server-setupper-logo-master.png");
+            byte[] png = File.ReadAllBytes(masterPath);
+            Check(png.Length > 24
+                && png.Take(8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
+                && ReadBigEndianInt32(png, 16) == 1024
+                && ReadBigEndianInt32(png, 20) == 1024,
+                "the committed application-logo master should be a real 1024 by 1024 PNG");
+
+            using (var stream = File.OpenRead(iconPath))
+            using (var reader = new BinaryReader(stream))
+            {
+                ushort reserved = reader.ReadUInt16();
+                ushort type = reader.ReadUInt16();
+                ushort count = reader.ReadUInt16();
+                var dimensions = new List<int>();
+                for (int index = 0; index < count; index++)
+                {
+                    byte width = reader.ReadByte();
+                    byte height = reader.ReadByte();
+                    dimensions.Add(width == 0 ? 256 : width);
+                    Check(height == width,
+                        "every application icon frame should be square");
+                    reader.BaseStream.Position += 14;
+                }
+
+                Check(reserved == 0
+                    && type == 1
+                    && count == 9
+                    && new[] { 16, 20, 24, 32, 40, 48, 64, 128, 256 }.All(dimensions.Contains),
+                    "the committed Windows icon should contain all nine required display sizes");
+            }
+
+            string projectFile = File.ReadAllText(Path.Combine(appRoot, "Windows-Server-Tools.csproj"));
+            string mainXaml = File.ReadAllText(Path.Combine(appRoot, "MainWindow.xaml"));
+            string secondaryXaml = File.ReadAllText(Path.Combine(appRoot, "CommonlyInstalledWindowsComponents.xaml"));
+            string installer = File.ReadAllText(Path.Combine(repositoryRoot, "packaging", "WindowsServerTools.iss"));
+            Check(projectFile.Contains("<ApplicationIcon>..\\assets\\branding\\windows-server-setupper.ico</ApplicationIcon>")
+                && mainXaml.Contains("Icon=\"Assets/windows-server-setupper.ico\"")
+                && secondaryXaml.Contains("Icon=\"Assets/windows-server-setupper.ico\"")
+                && installer.Contains("SetupIconFile=..\\Windows-Server-Tools\\assets\\branding\\windows-server-setupper.ico"),
+                "the original mark should be wired into the executable, both WPF windows, and installer metadata");
+        }
+
+        private static int ReadBigEndianInt32(byte[] bytes, int offset)
+        {
+            return (bytes[offset] << 24)
+                | (bytes[offset + 1] << 16)
+                | (bytes[offset + 2] << 8)
+                | bytes[offset + 3];
         }
 
         private static string FindRepositoryRoot()
