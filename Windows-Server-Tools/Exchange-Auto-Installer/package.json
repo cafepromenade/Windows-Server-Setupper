@@ -8,6 +8,15 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "generate:icon": "node scripts/generate-icon.js",
+    "lint": "node scripts/lint.js",
+    "typecheck": "node scripts/typecheck.js",
+    "test": "node --test --test-reporter=spec tests/*.test.js",
+    "test:negative": "node --test --test-reporter=spec tests/universal-negative-regression.test.js",
+    "verify:inventory": "node scripts/verify-universal-inventory.js",
+    "verify:opencode-release": "node scripts/verify-opencode-release.js",
+    "verify:package": "node scripts/verify-package.js",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run verify:inventory && npm run verify:opencode-release",
     "clean": "node scripts/clean-dist.js",
     "prebuild": "npm run clean",
     "build": "node scripts/run-electron-builder.js --dir",
@@ -20,7 +29,8 @@
   "devDependencies": {
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
-    "electron-builder-squirrel-windows": "26.15.3"
+    "electron-builder-squirrel-windows": "26.15.3",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.windowsservertools.exchangeautoinstaller",
@@ -29,15 +39,18 @@
     "directories": {
       "output": "dist"
     },
+    "afterPack": "scripts/apply-app-icon.js",
     "files": [
       "src/**/*",
       "renderer/**/*",
       "assets/**/*",
+      "docs/**/*",
       "package.json"
     ],
     "asar": true,
     "forceCodeSigning": false,
     "win": {
+      "icon": "assets/app.ico",
       "target": [
         {
           "target": "squirrel",
@@ -53,7 +66,7 @@
     "squirrelWindows": {
       "msi": false,
       "artifactName": "ExchangeAutoInstaller-${version}-${arch}-Setup.${ext}",
-      "iconUrl": "https://raw.githubusercontent.com/cafepromenade/Windows-Server-Setupper/c95456bad91737dcd49bfcdb64e75dbd62885db3/Windows-Server-Tools/Exchange-Install-API/favicon.ico"
+      "iconUrl": "https://raw.githubusercontent.com/cafepromenade/Windows-Server-Setupper/0c436de7b80f1950bcd7be430488f65a66f1ef2b/Windows-Server-Tools/Exchange-Auto-Installer/assets/app.ico"
     }
   }
 }

@@ -2,28 +2,45 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, autoUpdater, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { catalog: conversionCatalog, convertBuffer, detectType } = require('./conversion-manager');
 const { InstallerEngine } = require('./installer-engine');
+const { createOllamaManager } = require('./ollama-manager');
+const { createMediaHydrator } = require('./media-hydrator');
 const { detectLocalDefaults } = require('./preflight');
+const { SettingsStore } = require('./settings-store');
+const { ensureSecureDataRoot } = require('./secure-data-root');
+const { createUpdateManager } = require('./update-manager');
+const { redactText } = require('./redaction');
 
 if (require('electron-squirrel-startup')) app.quit();
+if (!app.requestSingleInstanceLock()) app.quit();
 
 let mainWindow = null;
 let engine = null;
 let openCodeManager = null;
+let ollamaManager = null;
+let settingsStore = null;
+let updateManager = null;
+let mediaHydrator = null;
 
 function sendState(state) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('exchange:state', state);
+}
+
+function sendUpdateState(state) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('exchange:update-state', state);
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1340,
     height: 900,
-    minWidth: 880,
-    minHeight: 640,
+    minWidth: 360,
+    minHeight: 520,
     show: false,
-    title: 'Exchange Auto Installer',
+    title: settingsStore?.load().appDisplayName || 'Exchange Auto Installer',
+    icon: path.join(__dirname, '..', 'assets', 'app.ico'),
     autoHideMenuBar: true,
     backgroundColor: '#f8f9ff',
     webPreferences: {
@@ -71,6 +88,7 @@ function registerIpc() {
     return engine.start({ licenseAccepted: true });
   });
   handle('exchange:retry-stage', (stageId) => engine.retryStage(assertIdentifier(stageId)));
+  handle('exchange:reconcile-stage', (request) => engine.reconcileStage(assertPlainObject(request)));
   handle('exchange:resume-install', () => engine.resume());
   handle('exchange:request-cancel', () => engine.requestCancel());
   handle('exchange:reveal-logs', async () => {
@@ -89,9 +107,63 @@ function registerIpc() {
       filters: [{ name: 'JSON Lines', extensions: ['jsonl'] }]
     });
     if (destination.canceled || !destination.filePath) return null;
-    fs.copyFileSync(source, destination.filePath);
+    const redacted = fs.readFileSync(source, 'utf8').split(/\r?\n/).filter(Boolean).map((line) => redactText(line)).join('\n');
+    fs.writeFileSync(destination.filePath, `${redacted}\n`, { flag: 'wx', mode: 0o600 });
     return { path: destination.filePath };
   });
+
+  handle('exchange:get-settings', () => settingsStore.load());
+  handle('exchange:save-settings', (request) => {
+    const settings = settingsStore.save(assertPlainObject(request));
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setTitle(settings.appDisplayName);
+    return settings;
+  });
+  handle('exchange:import-personal-vocabulary', async () => {
+    const selection = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose a local personal vocabulary JSON file',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+    if (selection.canceled || !selection.filePaths[0]) return null;
+    const payload = fs.readFileSync(selection.filePaths[0]);
+    return settingsStore.importVocabulary(payload);
+  });
+  handle('exchange:clear-personal-vocabulary', () => settingsStore.clearVocabulary());
+  handle('exchange:export-settings', () => settingsStore.exportRedacted());
+
+  handle('exchange:update-status', () => updateManager.getState());
+  handle('exchange:update-check', () => updateManager.check());
+  handle('exchange:update-restart', () => updateManager.restartToInstall());
+
+  handle('exchange:conversion-catalog', () => conversionCatalog());
+  handle('exchange:choose-conversion-source', async () => {
+    const selection = await dialog.showOpenDialog(mainWindow, { title: 'Choose a local file to convert', properties: ['openFile'] });
+    if (selection.canceled || !selection.filePaths[0]) return null;
+    const sourcePath = assertPath(selection.filePaths[0]);
+    const stat = fs.statSync(sourcePath);
+    if (!stat.isFile() || stat.size > 64 * 1024 * 1024) throw new Error('The selected file exceeds the 64 MiB per-file conversion bound.');
+    const bytes = fs.readFileSync(sourcePath);
+    return { path: sourcePath, size: bytes.length, detectedType: detectType(bytes) };
+  });
+  handle('exchange:convert-file', async (request) => {
+    const input = assertPlainObject(request);
+    const sourcePath = assertPath(input.sourcePath);
+    const adapterId = assertIdentifier(input.adapterId);
+    const bytes = fs.readFileSync(sourcePath);
+    const output = convertBuffer(adapterId, bytes);
+    const destination = await dialog.showSaveDialog(mainWindow, { title: 'Save converted file', defaultPath: path.join(path.dirname(sourcePath), `${path.basename(sourcePath)}.converted`) });
+    if (destination.canceled || !destination.filePath) return null;
+    const outputPath = assertPath(destination.filePath);
+    const temporary = `${outputPath}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, output, { flag: 'wx' });
+    fs.renameSync(temporary, outputPath);
+    return { path: outputPath, bytes: output.length, detectedType: detectType(output) };
+  });
+
+  handle('exchange:ollama-status', () => ollamaManager.status());
+  handle('exchange:offline-docs', () => readOfflineDocs());
+  handle('exchange:cheap-lfs-verify', () => mediaHydrator.verifyMetadata());
+  handle('exchange:cheap-lfs-hydrate', () => mediaHydrator.hydrate());
 
   handle('exchange:opencode-status', () => requireOpenCode().status());
   handle('exchange:opencode-install-or-repair', () => requireOpenCode().installOrRepair());
@@ -143,7 +215,7 @@ async function applyRepairActions(plan) {
 
 function assertPath(value) {
   const text = String(value || '').trim();
-  if (!text || text.length > 1_024 || /[\r\n\0]/.test(text) || !path.isAbsolute(text)) throw new Error('Select an absolute local media path.');
+  if (!text || text.length > 1_024 || /[\r\n\0]/.test(text) || !path.isAbsolute(text) || /^(?:\\\\|\/\/|\\\\[?.]\\)/.test(text)) throw new Error('Select an absolute local path; network, UNC, and device paths are refused.');
   return text;
 }
 
@@ -162,18 +234,33 @@ function safeError(error) {
   return String(error && error.message ? error.message : error || 'The operation failed.').replace(/[\r\n\0]/g, ' ').slice(0, 2_000);
 }
 
+function readOfflineDocs() {
+  const docsRoot = path.join(__dirname, '..', 'docs');
+  const allowed = ['opencode-repair.md', 'universal-features.md', 'installer-guide.md'];
+  return allowed.map((name) => {
+    const filePath = path.join(docsRoot, name);
+    return { id: name.replace(/\.md$/, ''), title: name.replace(/\.md$/, '').replace(/-/g, ' '), content: fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8').slice(0, 512 * 1024) : 'This bundled article is unavailable in this build.' };
+  });
+}
+
 app.whenReady().then(async () => {
   const defaults = await detectLocalDefaults();
-  engine = new InstallerEngine({ userDataDir: app.getPath('userData'), defaults, onState: sendState });
+  const secureDataRoot = ensureSecureDataRoot(app.getPath('userData'));
+  engine = new InstallerEngine({ userDataDir: secureDataRoot, defaults, onState: sendState });
+  settingsStore = new SettingsStore(app.getPath('userData'));
+  ollamaManager = createOllamaManager();
+  updateManager = createUpdateManager({ app, autoUpdater, onState: sendUpdateState });
+  mediaHydrator = createMediaHydrator({ repositoryRoot: path.resolve(__dirname, '..', '..', '..') });
   try {
     const { createOpenCodeManager } = require('./opencode-manager');
-    openCodeManager = createOpenCodeManager({ userDataDir: app.getPath('userData') });
+    openCodeManager = createOpenCodeManager({ userDataDir: secureDataRoot });
   } catch {
     openCodeManager = null;
   }
   registerIpc();
   createWindow();
+  updateManager.configure();
 });
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => { updateManager?.dispose(); engine?.close(); app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
