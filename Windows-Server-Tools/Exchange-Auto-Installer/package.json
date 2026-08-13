@@ -48,7 +48,8 @@
     },
     "squirrelWindows": {
       "msi": false,
-      "artifactName": "ExchangeAutoInstaller-${version}-${arch}-Setup.${ext}"
+      "artifactName": "ExchangeAutoInstaller-${version}-${arch}-Setup.${ext}",
+      "iconUrl": "https://raw.githubusercontent.com/cafepromenade/Windows-Server-Setupper/main/Windows-Server-Tools/Exchange-Install-API/favicon.ico"
     }
   }
 }
