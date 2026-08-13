@@ -1494,35 +1494,6 @@ namespace Windows_Server_Tools
                 requiresServerMutation: false);
         }
 
-        private static string GetTrustedSystemExecutable(string fileName)
-        {
-            if (string.IsNullOrWhiteSpace(fileName)
-                || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-                || !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
-            {
-                throw new ArgumentException("A trusted system executable name is required.", nameof(fileName));
-            }
-
-            string windowsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            if (string.IsNullOrWhiteSpace(windowsDirectory) || !Path.IsPathRooted(windowsDirectory))
-            {
-                throw new InvalidOperationException("The Windows directory could not be located.");
-            }
-
-            string systemDirectory = Path.GetFullPath(Path.Combine(windowsDirectory, "System32"));
-            string executable = Path.GetFullPath(Path.Combine(systemDirectory, fileName));
-            string boundary = systemDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                + Path.DirectorySeparatorChar;
-            if (!executable.StartsWith(boundary, StringComparison.OrdinalIgnoreCase)
-                || !File.Exists(executable)
-                || (File.GetAttributes(executable) & FileAttributes.ReparsePoint) != 0)
-            {
-                throw new FileNotFoundException("The trusted system executable could not be verified.", executable);
-            }
-
-            return executable;
-        }
-
         private async void SCCMButton_Click(object sender, RoutedEventArgs e)
         {
             await ShowUnavailableInstallerAsync("SCCM", SCCMButton);
