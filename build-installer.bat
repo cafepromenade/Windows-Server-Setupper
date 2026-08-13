@@ -6,7 +6,6 @@ set "PROJECT_OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release"
 set "PROJECT_EXE=%PROJECT_OUTPUT%\Windows-Server-Tools.exe"
 set "COMMIT_FILE=%PROJECT_OUTPUT%\source-commit.txt"
 set "BUILD_HASH_FILE=%PROJECT_OUTPUT%\source-executable.sha256"
-set "GENERATED_REFERENCE_CACHE=Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache"
 set "SCRIPT=%ROOT%packaging\WindowsServerTools.iss"
 set "INSTALLER_DIR=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Installer"
 set "SILENT_MODE=0"
@@ -34,15 +33,46 @@ if not defined SOURCE_COMMIT (
     popd >nul
     exit /b 1
 )
-git diff --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%"
+git diff --cached --quiet --ignore-submodules --
 if errorlevel 1 (
-    echo ERROR: Tracked files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
+    echo ERROR: Staged files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
     popd >nul
     exit /b 1
 )
-git diff --cached --quiet --ignore-submodules -- . ":(exclude)%GENERATED_REFERENCE_CACHE%"
+set "GENERATED_TRACKED_DIFF="
+set "UNEXPECTED_TRACKED_DIFF="
+for /f "delims=" %%I in ('git diff --name-only --ignore-submodules --') do (
+    call :is_known_build_byproduct "%%I"
+    if errorlevel 1 (
+        if not defined UNEXPECTED_TRACKED_DIFF set "UNEXPECTED_TRACKED_DIFF=%%I"
+    ) else (
+        set "GENERATED_TRACKED_DIFF=1"
+    )
+)
+if defined UNEXPECTED_TRACKED_DIFF (
+    echo ERROR: Tracked source differs from commit %SOURCE_COMMIT% at "%UNEXPECTED_TRACKED_DIFF%".
+    popd >nul
+    exit /b 1
+)
+if defined GENERATED_TRACKED_DIFF (
+    call :validate_candidate_build
+    set "GENERATED_PROVENANCE_EXIT=!ERRORLEVEL!"
+    if not "!GENERATED_PROVENANCE_EXIT!"=="0" (
+        echo ERROR: Generated build byproducts differ, but no matching commit-and-hash build provenance exists.
+        popd >nul
+        exit /b !GENERATED_PROVENANCE_EXIT!
+    )
+    git restore --source=HEAD -- "Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref"
+    set "GENERATED_RESTORE_EXIT=!ERRORLEVEL!"
+    if not "!GENERATED_RESTORE_EXIT!"=="0" (
+        echo ERROR: The five known tracked build byproducts could not be restored to commit %SOURCE_COMMIT%.
+        popd >nul
+        exit /b !GENERATED_RESTORE_EXIT!
+    )
+)
+git diff --quiet --ignore-submodules --
 if errorlevel 1 (
-    echo ERROR: Staged files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
+    echo ERROR: Tracked files still differ from commit %SOURCE_COMMIT% after generated-output reconciliation.
     popd >nul
     exit /b 1
 )
@@ -158,6 +188,14 @@ if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86
 if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 exit /b 0
+
+:is_known_build_byproduct
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref" exit /b 0
+exit /b 1
 
 :validate_candidate_build
 if not exist "%PROJECT_EXE%" exit /b 1
