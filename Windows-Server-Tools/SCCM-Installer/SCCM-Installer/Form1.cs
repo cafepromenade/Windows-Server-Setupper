@@ -49,7 +49,10 @@ namespace SCCM_Installer
             // INSTALL IF ALREADY PROMOTED TO DC //
             if (CommandLineArgs.Contains("install_domain"))
             {
-                await ProcessInstall(true);
+                if (!await ProcessInstall(true))
+                {
+                    return;
+                }
             }
             // INSTALL PREREQUISITES BEFORE PROMOTE TO DC TO SAVE A REBOOT //
             else if (CommandLineArgs.Contains("install"))
@@ -64,11 +67,18 @@ namespace SCCM_Installer
             // INSTALL SIDE SERVER (WITHOUT PROMOTING TO DC)
             else if (CommandLineArgs.Contains("side_server"))
             {
-                await InstallSideServer();
+                if (!await InstallSideServer())
+                {
+                    return;
+                }
             }
             else if (CommandLineArgs.Contains("dealer"))
             {
-                await SQLDealer();
+                if (!await SQLDealer())
+                {
+                    EnableStuff = true;
+                    return;
+                }
                 //Close();
             }
             else
@@ -90,7 +100,10 @@ namespace SCCM_Installer
         {
             if (textBox1.Text.Contains("."))
             {
-                await ProcessInstall();
+                if (!await ProcessInstall())
+                {
+                    return;
+                }
             }
             else
             {

@@ -11,11 +11,16 @@ namespace SCCM_Installer
 {
     public partial class Form1
     {
-        public async Task InstallSideServer()
+        public async Task<bool> InstallSideServer()
         {
             EnableStuff = false;
             MainTextBox.Text += "\nInstalling SQL Server";
-            await InstallSQLServer();
+            if (!await InstallSQLServer())
+            {
+                MainTextBox.Text += "\nStopped: SQL Server installation requires secure credential input before this setup can continue.";
+                EnableStuff = true;
+                return false;
+            }
             MainTextBox.Text += "\nDownloading reporting services";
             new WebClient().DownloadFile("http://house.bigheados.com/files/sqlreporting.exe", Environment.GetEnvironmentVariable("APPDATA") + "\\SQLReporting.exe");
             MainTextBox.Text += "\nInstalling reporting services"; 
@@ -36,6 +41,7 @@ namespace SCCM_Installer
             }
 
             EnableStuff = true;
+            return true;
         }
     }
 }
