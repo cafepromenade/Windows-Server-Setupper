@@ -30,6 +30,7 @@ function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$
         'bounded artifact retention' = '(?m)^\s{10}retention-days:\s+\d+\s*$'
         'disabled certificate discovery' = '(?m)^\s{6}CSC_IDENTITY_AUTO_DISCOVERY:\s+''false''\s*$'
         'release token fallback chain' = 'secrets\.RELEASE_TOKEN \|\| secrets\.ORG_TOKEN \|\| secrets\.GITHUB_TOKEN'
+        'unique shared release version' = 'WST_RELEASE_VERSION=\$releaseVersion'
     }
     foreach ($entry in $requiredWorkflowPatterns.GetEnumerator()) {
         if ($Workflow -notmatch $entry.Value) { throw "Release workflow is missing $($entry.Key)." }
@@ -57,6 +58,7 @@ function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$
     foreach ($job in $Inventory.jobs) {
         if ([string]$job.runner -cne 'windows-2025') { throw "Inventory runner mismatch for $($job.id)." }
         if ([string]::IsNullOrWhiteSpace([string]$job.bootstrapProof) -or [string]::IsNullOrWhiteSpace([string]$job.firstRealWork)) { throw "Inventory bootstrap proof is incomplete for $($job.id)." }
+        if ([string]::IsNullOrWhiteSpace([string]$job.versionContract)) { throw "Inventory shared-version contract is incomplete for $($job.id)." }
         if (@($job.dependencies).Count -lt 1 -or @($job.safeOutputs).Count -lt 1) { throw "Inventory dependency or safe-output list is empty for $($job.id)." }
         foreach ($dependency in $job.dependencies) {
             foreach ($field in @('name', 'constraint', 'source', 'bootstrap')) {
@@ -65,16 +67,17 @@ function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$
         }
     }
 
-    foreach ($needle in @('verify-application-icons.ps1', 'npm.cmd" ci', 'npm.cmd" run build', 'Exchange Auto Installer.exe', 'source-commit.txt')) {
+    foreach ($needle in @('verify-application-icons.ps1', 'ensure-msbuild.ps1', 'npm.cmd" ci', 'npm.cmd" run build', 'Exchange Auto Installer.exe', 'source-commit.txt')) {
         if (-not $BuildScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "build.bat is missing Exchange orchestration evidence: $needle" }
     }
-    foreach ($needle in @('package-exchange.ps1', 'verify-exchange-package.ps1', 'Exchange Squirrel.Windows output')) {
+    foreach ($needle in @('ensure-inno.ps1', 'package-exchange.ps1', 'verify-exchange-package.ps1', 'Exchange Squirrel.Windows output', '/DReleaseVersion=%PACKAGE_VERSION%', '-Version "%PACKAGE_VERSION%"', '-ExpectedVersion "%PACKAGE_VERSION%"')) {
         if (-not $InstallerScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "build-installer.bat is missing Exchange packaging evidence: $needle" }
     }
     if ($InstallerScript -match '(?im)^\s*git\s+restore\b') { throw 'build-installer.bat must not discard local edits with git restore.' }
-    foreach ($needle in @('gh release create', 'gh release edit', 'gh release download', 'published_at', 'Workflow duration')) {
+    foreach ($needle in @('gh release create', '--draft=false', '--prerelease=false', 'gh release edit', 'gh release download', 'published_at', 'Workflow duration', 'manifest.packageVersion', 'WST_RELEASE_VERSION', 'verified.body', 'browser_download_url')) {
         if (-not $PublishScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "Release publisher is missing required proof: $needle" }
     }
+    if ([regex]::Matches($PublishScript, '(?im)^\s*&\s+gh\s+release\s+create\b').Count -ne 1) { throw 'Release publisher must contain exactly one release-create call.' }
     foreach ($needle in @('default Electron icon is used', 'application icon is not set', 'CSC_IDENTITY_AUTO_DISCOVERY', 'package.log')) {
         if (-not $ExchangePackageScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "Exchange package helper is missing required icon/signing-log proof: $needle" }
     }
@@ -104,6 +107,9 @@ if ($SelfTest) {
         'missing Exchange package verifier' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace 'verify-exchange-package\.ps1', 'missing-verifier.ps1'; exchangePackage = $exchangePackage }
         'missing default-icon rejection' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage -replace 'default Electron icon is used', 'default icon accepted' }
         'missing application-icon verifier' = @{ workflow = $workflow; publish = $publish; build = $build -replace 'verify-application-icons\.ps1', 'missing-icon-verifier.ps1'; installer = $installer; exchangePackage = $exchangePackage }
+        'missing shared installer version' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace '/DReleaseVersion=%PACKAGE_VERSION%', '/DMissingVersion=1'; exchangePackage = $exchangePackage }
+        'missing Build Tools fallback' = @{ workflow = $workflow; publish = $publish; build = $build -replace 'ensure-msbuild\.ps1', 'missing-msbuild-helper.ps1'; installer = $installer; exchangePackage = $exchangePackage }
+        'missing Inno fallback' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace 'ensure-inno\.ps1', 'missing-inno-helper.ps1'; exchangePackage = $exchangePackage }
     }
     $red = 0
     foreach ($entry in $mutations.GetEnumerator()) {

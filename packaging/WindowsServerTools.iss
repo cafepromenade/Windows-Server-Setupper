@@ -1,6 +1,9 @@
 #ifndef SourceCommit
   #error SourceCommit must be supplied by build-installer.bat.
 #endif
+#ifndef ReleaseVersion
+  #error ReleaseVersion must be supplied by build-installer.bat.
+#endif
 
 #define AppName "Windows Server Tools"
 #define AppExecutable "Windows-Server-Tools.exe"
@@ -10,9 +13,13 @@
 [Setup]
 AppId={{67C5E166-98CD-4BC7-B4E9-1C5EF9A9605B}
 AppName={#AppName}
-AppVersion=0.1.0 ({#SourceCommit})
+AppVersion={#ReleaseVersion}
+AppVerName={#AppName} {#ReleaseVersion} ({#SourceCommit})
 AppPublisher=cafepromenade
 AppComments=Unsigned build from commit {#SourceCommit}
+VersionInfoVersion={#ReleaseVersion}
+VersionInfoProductVersion={#ReleaseVersion}
+VersionInfoProductTextVersion={#ReleaseVersion} ({#SourceCommit})
 DefaultDirName={autopf}\Windows Server Tools
 DefaultGroupName=Windows Server Tools
 DisableProgramGroupPage=yes

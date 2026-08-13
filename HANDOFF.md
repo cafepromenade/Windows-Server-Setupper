@@ -14,6 +14,7 @@ This handoff does not claim that the candidate has been pushed, run by GitHub Ac
 - Every `RELEASES` entry must name a present package whose byte count and SHA-1 match the index. Release evidence adds SHA-256 for every install/update artifact.
 - Both setup executables and the unpacked Exchange application must have valid PE structure and no certificate table. Signer/certificate environment inputs are cleared, certificate auto-discovery is disabled, and the package log is rejected if it records a signer invocation.
 - The workflow creates one unique tag/release per run and attempt, verifies the exact target, final non-draft state, asset count, nonzero files, hashes, and downloadability, and records server publication timing from the Actions job `started_at` value.
+- The workflow assigns `1.<run-number>.<run-attempt>` once and requires both the Inno Setup and Squirrel.Windows outputs to carry that exact version before release assembly.
 - The release links a verified public dim-sum photo without copying it. Catalog unavailability is a non-blocking decoration failure.
 - Safe failure evidence is uploaded with `if: always()`, bounded retention, and nonmasking collection/upload steps.
 

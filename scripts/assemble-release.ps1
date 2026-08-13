@@ -21,13 +21,18 @@ New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 $commit = (& git -C $repoRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Could not resolve the release commit.' }
 if ($env:GITHUB_SHA -and $env:GITHUB_SHA -cne $commit) { throw "GITHUB_SHA $env:GITHUB_SHA does not match checked-out commit $commit." }
+$packageVersion = [string]$env:WST_RELEASE_VERSION
+if ($packageVersion -notmatch '^\d+\.\d+\.\d+$') { throw "WST_RELEASE_VERSION must be numeric major.minor.patch text; got '$packageVersion'." }
 
-& (Join-Path $PSScriptRoot 'verify-exchange-package.ps1') -SourceCommit $commit -JsonOutputPath (Join-Path $EvidenceDirectory 'exchange-package.json')
+& (Join-Path $PSScriptRoot 'verify-exchange-package.ps1') -SourceCommit $commit -ExpectedVersion $packageVersion -JsonOutputPath (Join-Path $EvidenceDirectory 'exchange-package.json')
 if ($LASTEXITCODE -ne 0) { throw 'Exchange Squirrel.Windows verification failed during release assembly.' }
 
 $wpfInstaller = Join-Path $repoRoot "Windows-Server-Tools\Windows-Server-Tools\bin\Installer\WindowsServerTools-Setup-$commit.exe"
+$wpfVersionFile = Join-Path $repoRoot 'Windows-Server-Tools\Windows-Server-Tools\bin\Installer\package-version.txt'
 $squirrelRoot = Join-Path $repoRoot 'Windows-Server-Tools\Exchange-Auto-Installer\dist\squirrel-windows'
 if (-not (Test-Path -LiteralPath $wpfInstaller -PathType Leaf)) { throw "The WPF installer is missing: $wpfInstaller" }
+if (-not (Test-Path -LiteralPath $wpfVersionFile -PathType Leaf)) { throw "The WPF installer version evidence is missing: $wpfVersionFile" }
+if ((Get-Content -LiteralPath $wpfVersionFile -Raw).Trim() -cne $packageVersion) { throw 'The WPF installer does not carry the workflow package version.' }
 if (-not (Test-Path -LiteralPath $squirrelRoot -PathType Container)) { throw "The Squirrel.Windows output is missing: $squirrelRoot" }
 
 $exchangeSetups = @(Get-ChildItem -LiteralPath $squirrelRoot -File | Where-Object { $_.Name -like '*-Setup.exe' })
@@ -99,6 +104,7 @@ $runContext = [ordered]@{
 $manifest = [ordered]@{
     schemaVersion = 1
     commit = $commit
+    packageVersion = $packageVersion
     createdAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
     artifacts = $manifestArtifacts
 }

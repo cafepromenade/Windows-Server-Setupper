@@ -57,25 +57,14 @@ if not "%CLEAN_OUTPUT_EXIT%"=="0" (
 echo [2/9] Locating Microsoft Build Tools...
 call :find_msbuild
 if not defined MSBUILD (
-    echo Microsoft Build Tools were not found. Installing the canonical Microsoft package with winget...
-    where winget.exe >nul 2>&1 || (
-        echo ERROR: Missing dependency: Microsoft Build Tools with the .NET Framework 4.7.2 targeting pack.
-        echo Tried installed Visual Studio instances and winget, but winget is unavailable.
-        popd >nul
-        exit /b 1
-    )
-    winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity --override "--wait --passive --norestart --add Microsoft.VisualStudio.Workload.MSBuildTools --add Microsoft.Net.Component.4.7.2.TargetingPack --add Microsoft.Net.Component.4.7.2.SDK --includeRecommended"
-    if errorlevel 1 (
-        echo ERROR: Microsoft Build Tools installation failed through canonical winget package Microsoft.VisualStudio.2022.BuildTools.
-        popd >nul
-        exit /b 1
-    )
-    call :find_msbuild
+    echo Microsoft Build Tools were not found. Trying pinned canonical bootstrap routes...
+    for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\ensure-msbuild.ps1"`) do set "MSBUILD=%%I"
 )
 
 if not defined MSBUILD (
-    echo ERROR: Microsoft Build Tools installed without a discoverable MSBuild.exe.
-    echo Required components: MSBuild and the .NET Framework 4.7.2 targeting pack.
+    echo ERROR: Missing dependency: Microsoft Build Tools 17.14.37-compatible MSBuild.
+    echo Tried installed Visual Studio instances, pinned winget, and the SHA-256-verified official Microsoft bootstrapper.
+    echo Required components: MSBuild, managed desktop build tools, and the .NET Framework 4.7.2 targeting pack.
     popd >nul
     exit /b 1
 )

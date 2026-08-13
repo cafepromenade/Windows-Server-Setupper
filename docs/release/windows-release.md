@@ -17,7 +17,7 @@ The token chain is `RELEASE_TOKEN`, then the organization token, then the workfl
 5. Run `build-installer.bat /s` to produce and validate both installer families.
 6. Resolve an unused public dim-sum code name, or record an honest catalog-unavailable reason.
 7. Assemble only the allowlisted release assets and evidence.
-8. Create one unique non-draft release, finalize server-derived timing, download every asset, and compare hashes.
+8. Prove both installer families carry the unique `1.<run-number>.<run-attempt>` package version, create one unique non-draft release, finalize server-derived timing, download every asset, and compare hashes.
 9. Under `if: always()`, collect and upload safe outputs even when an earlier build, package, or publication step fails.
 
 The workflow runs no tests or lint. Build, packaging, unsigned-state, provenance, manifest, and release-record validation are delivery operations rather than code-quality gates.

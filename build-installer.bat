@@ -10,6 +10,7 @@ set "SCRIPT=%ROOT%packaging\WindowsServerTools.iss"
 set "INSTALLER_DIR=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Installer"
 set "EXCHANGE_ROOT=%ROOT%Windows-Server-Tools\Exchange-Auto-Installer"
 set "EXCHANGE_DIST=%ROOT%Windows-Server-Tools\Exchange-Auto-Installer\dist"
+set "WPF_INSTALLER_VERSION_FILE=%INSTALLER_DIR%\package-version.txt"
 set "SILENT_MODE=0"
 
 if /i "%SILENT%"=="1" set "SILENT_MODE=1"
@@ -56,6 +57,17 @@ if defined UNTRACKED_SOURCE (
 )
 echo Source commit: %SOURCE_COMMIT%
 
+set "PACKAGE_VERSION=%WST_RELEASE_VERSION%"
+if not defined PACKAGE_VERSION (
+    for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; (Get-Content -LiteralPath (Join-Path $env:EXCHANGE_ROOT 'package.json') -Raw ^| ConvertFrom-Json).version"`) do set "PACKAGE_VERSION=%%I"
+)
+echo %PACKAGE_VERSION%| findstr /r /x "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*" >nul || (
+    echo ERROR: Shared installer version must be numeric major.minor.patch text; got "%PACKAGE_VERSION%".
+    popd >nul
+    exit /b 1
+)
+echo Shared installer version: %PACKAGE_VERSION%
+
 echo [2/10] Ensuring exact runnable application builds...
 call :validate_candidate_build
 set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
@@ -81,31 +93,15 @@ if "!CANDIDATE_BUILD_EXIT!"=="0" (
 echo [3/10] Locating Inno Setup 6...
 call :find_iscc
 if not defined ISCC (
-    echo Inno Setup 6 was not found. Installing canonical winget package JRSoftware.InnoSetup...
-    where winget.exe >nul 2>&1 || (
-        echo ERROR: Missing dependency: Inno Setup 6.
-        echo Tried installed locations and winget, but winget is unavailable.
-        popd >nul
-        exit /b 1
-    )
-    winget install --id JRSoftware.InnoSetup --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-    set "INNO_INSTALL_EXIT=!ERRORLEVEL!"
-    if not "!INNO_INSTALL_EXIT!"=="0" (
-        echo ERROR: Inno Setup installation failed through canonical winget package JRSoftware.InnoSetup.
-        popd >nul
-        exit /b !INNO_INSTALL_EXIT!
-    )
-    call :find_iscc
-)
-if not defined ISCC (
-    echo ERROR: Inno Setup installed without a discoverable ISCC.exe.
+    echo ERROR: Missing dependency: Inno Setup 6.7.3-compatible compiler.
+    echo Tried compatible installed copies, pinned winget, and the SHA-256-verified official GitHub release installer.
     popd >nul
     exit /b 1
 )
 echo Found Inno Setup compiler: "%ISCC%"
 
 echo [4/10] Packaging the unsigned primary WPF installer...
-"%ISCC%" "/DSourceCommit=%SOURCE_COMMIT%" "%SCRIPT%"
+"%ISCC%" "/DSourceCommit=%SOURCE_COMMIT%" "/DReleaseVersion=%PACKAGE_VERSION%" "%SCRIPT%"
 set "ISCC_EXIT=!ERRORLEVEL!"
 if not "!ISCC_EXIT!"=="0" (
     echo ERROR: Inno Setup failed to package "%SCRIPT%".
@@ -134,6 +130,14 @@ if not "!SIGNATURE_CHECK_EXIT!"=="0" (
     popd >nul
     exit /b !SIGNATURE_CHECK_EXIT!
 )
+powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $expected=[Version]$env:PACKAGE_VERSION; $actual=[Version](Get-Item -LiteralPath $env:INSTALLER).VersionInfo.FileVersion; if ($actual.Major -ne $expected.Major -or $actual.Minor -ne $expected.Minor -or $actual.Build -ne $expected.Build) { throw ('WPF installer version '+$actual+' does not match shared package version '+$expected+'.') }"
+set "WPF_VERSION_EXIT=!ERRORLEVEL!"
+if not "!WPF_VERSION_EXIT!"=="0" (
+    echo ERROR: The primary installer does not carry shared version %PACKAGE_VERSION%.
+    popd >nul
+    exit /b !WPF_VERSION_EXIT!
+)
+>"%WPF_INSTALLER_VERSION_FILE%" echo %PACKAGE_VERSION%
 
 echo [6/10] Calculating the primary installer SHA-256...
 set "WST_HASH_TARGET=%INSTALLER%"
@@ -164,11 +168,7 @@ if not exist "%NODE_HOME%\npm.cmd" (
 )
 
 echo [8/10] Packaging the Exchange Auto Installer through isolated Squirrel.Windows staging...
-if defined WST_RELEASE_VERSION (
-    powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\package-exchange.ps1" -NodeHome "%NODE_HOME%" -SourceCommit "%SOURCE_COMMIT%" -Version "%WST_RELEASE_VERSION%"
-) else (
-    powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\package-exchange.ps1" -NodeHome "%NODE_HOME%" -SourceCommit "%SOURCE_COMMIT%"
-)
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\package-exchange.ps1" -NodeHome "%NODE_HOME%" -SourceCommit "%SOURCE_COMMIT%" -Version "%PACKAGE_VERSION%"
 set "EXCHANGE_PACKAGE_EXIT=!ERRORLEVEL!"
 if not "!EXCHANGE_PACKAGE_EXIT!"=="0" (
     echo ERROR: Exchange Auto Installer packaging failed with exit code !EXCHANGE_PACKAGE_EXIT!.
@@ -177,7 +177,7 @@ if not "!EXCHANGE_PACKAGE_EXIT!"=="0" (
 )
 
 echo [9/10] Verifying Squirrel.Windows setup, RELEASES, full package, provenance, and unsigned state...
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\verify-exchange-package.ps1" -SourceCommit "%SOURCE_COMMIT%"
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\verify-exchange-package.ps1" -SourceCommit "%SOURCE_COMMIT%" -ExpectedVersion "%PACKAGE_VERSION%"
 set "EXCHANGE_VERIFY_EXIT=!ERRORLEVEL!"
 if not "!EXCHANGE_VERIFY_EXIT!"=="0" (
     echo ERROR: Exchange Squirrel.Windows output verification failed with exit code !EXCHANGE_VERIFY_EXIT!.
@@ -201,6 +201,7 @@ if errorlevel 1 (
 
 echo Installer build complete.
 echo Source commit: %SOURCE_COMMIT%
+echo Shared installer version: %PACKAGE_VERSION%
 echo Primary installer: "%INSTALLER%"
 echo Primary installer size: %INSTALLER_SIZE% bytes
 echo Primary installer SHA-256: %INSTALLER_SHA256%
@@ -213,9 +214,7 @@ exit /b 0
 
 :find_iscc
 set "ISCC="
-if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
-if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
-if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\ensure-inno.ps1"`) do set "ISCC=%%I"
 exit /b 0
 
 :find_node
