@@ -2,6 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "ROOT=%~dp0"
+set "SOLUTION=%ROOT%Windows-Server-Tools\Windows-Server-Tools.sln"
 set "PROJECT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\Windows-Server-Tools.csproj"
 set "OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\Windows-Server-Tools.exe"
 set "SILENT_MODE=0"
@@ -45,9 +46,9 @@ if not defined MSBUILD (
 echo Found MSBuild: "%MSBUILD%"
 
 echo [2/4] Restoring declared NuGet packages...
-"%MSBUILD%" "%PROJECT%" /t:Restore /m /nologo /verbosity:minimal /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform="Any CPU"
+"%MSBUILD%" "%SOLUTION%" /t:Restore /m /nologo /verbosity:minimal /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform="Any CPU"
 if errorlevel 1 (
-    echo ERROR: Package restore failed for "%PROJECT%".
+    echo ERROR: Package restore failed for "%SOLUTION%".
     popd >nul
     exit /b 1
 )
