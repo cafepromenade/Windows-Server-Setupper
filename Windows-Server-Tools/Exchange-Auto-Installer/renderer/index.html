@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exchange Auto Installer</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./renderer.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to installer</a>
+
+    <header class="top-app-bar">
+      <div class="brand-mark" aria-hidden="true">E</div>
+      <div class="brand-copy">
+        <p class="eyebrow">LOCAL INSTALL ORCHESTRATOR</p>
+        <h1>Exchange Auto Installer</h1>
+      </div>
+      <div class="app-status" id="app-status" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="app-status-label">Connecting to the installer service…</span>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <nav class="step-navigation" aria-label="Installation sections">
+        <a href="#configuration" data-nav-target="configuration">
+          <span class="step-number" aria-hidden="true">1</span>
+          <span><strong>Configure</strong><small>Ordinary values are pre-filled</small></span>
+        </a>
+        <a href="#preflight" data-nav-target="preflight">
+          <span class="step-number" aria-hidden="true">2</span>
+          <span><strong>Preflight</strong><small>Prove this server is ready</small></span>
+        </a>
+        <a href="#review" data-nav-target="review">
+          <span class="step-number" aria-hidden="true">3</span>
+          <span><strong>Review</strong><small>Inspect the exact plan</small></span>
+        </a>
+        <a href="#installation" data-nav-target="installation">
+          <span class="step-number" aria-hidden="true">4</span>
+          <span><strong>Install</strong><small>Resume safely after interruptions</small></span>
+        </a>
+        <a href="#logs" data-nav-target="logs">
+          <span class="step-number" aria-hidden="true">5</span>
+          <span><strong>Logs</strong><small>Redacted local evidence</small></span>
+        </a>
+        <a href="#repair" data-nav-target="repair">
+          <span class="step-number" aria-hidden="true">6</span>
+          <span><strong>Repair adviser</strong><small>Optional bounded OpenCode help</small></span>
+        </a>
+      </nav>
+
+      <main id="main-content" tabindex="-1">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <p class="eyebrow">GUIDED · RESUMABLE · LOCAL</p>
+            <h2 id="hero-title">Set up Exchange without babysitting every command.</h2>
+            <p>
+              Review the pre-filled non-secret values, select trusted Exchange media, and let the
+              installer move through durable stages. A failed stage remains visible and recoverable.
+            </p>
+          </div>
+          <div class="hero-summary" aria-label="Current installation summary">
+            <span id="hero-state-label">Not started</span>
+            <strong id="hero-progress-label">0%</strong>
+            <div
+              class="progress-track"
+              role="progressbar"
+              aria-label="Overall installation progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              id="overall-progress"
+            >
+              <span id="overall-progress-bar"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="notice-stack" id="notice-stack" aria-live="polite" aria-atomic="true"></section>
+
+        <section class="recovery-banner hidden" id="action-recovery" aria-labelledby="action-recovery-title">
+          <div>
+            <p class="eyebrow">ACTION NEEDS ATTENTION</p>
+            <h2 id="action-recovery-title">The last action stopped, but your progress is still here.</h2>
+            <p id="action-recovery-message"></p>
+          </div>
+          <button class="button secondary" type="button" id="retry-last-action">Retry last action</button>
+        </section>
+
+        <section class="surface" id="configuration" aria-labelledby="configuration-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">STEP 1</p>
+              <h2 id="configuration-title">Configure the installation</h2>
+              <p>Common non-secret values are ready to review. Credentials are never pre-filled.</p>
+            </div>
+            <span class="save-state" id="profile-save-state" role="status">Waiting for installer state</span>
+          </div>
+
+          <form id="profile-form" novalidate>
+            <fieldset class="field-group media-group">
+              <legend>Exchange installation media</legend>
+              <p class="field-help" id="media-help">
+                Select a mounted media folder or its <code>Setup.exe</code>. The installer verifies
+                the executable and digest before use.
+              </p>
+              <div class="path-field">
+                <label for="media-path">Media folder or Setup.exe</label>
+                <div class="path-controls">
+                  <input
+                    id="media-path"
+                    name="mediaPath"
+                    data-profile="mediaPath"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="media-help media-validation"
+                  />
+                  <button class="button secondary" type="button" id="choose-media">Browse…</button>
+                  <button class="button tonal" type="button" id="inspect-media">Inspect media</button>
+                </div>
+                <span class="validation-message" id="media-validation"></span>
+              </div>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Organization and server</legend>
+              <div class="field-grid">
+                <label class="field">
+                  <span>Exchange organization name</span>
+                  <input
+                    name="organizationName"
+                    data-profile="organizationName"
+                    type="text"
+                    value="Exchange Organization"
+                    maxlength="64"
+                    autocomplete="organization"
+                    required
+                  />
+                  <small>Used only when the organization has not already been prepared.</small>
+                </label>
+
+                <label class="field">
+                  <span>Server role</span>
+                  <select name="role" data-profile="role">
+                    <option value="Mailbox" selected>Mailbox</option>
+                    <option value="ManagementTools">Management tools only</option>
+                    <option value="EdgeTransport">Edge Transport</option>
+                  </select>
+                </label>
+
+                <label class="field span-2">
+                  <span>Exchange installation path</span>
+                  <input
+                    name="installPath"
+                    data-profile="installPath"
+                    type="text"
+                    value="C:\Program Files\Microsoft\Exchange Server\V15"
+                    autocomplete="off"
+                    spellcheck="false"
+                    required
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="field-group" id="mailbox-settings">
+              <legend>First mailbox database</legend>
+              <div class="field-grid">
+                <label class="field">
+                  <span>Database name</span>
+                  <input
+                    name="databaseName"
+                    data-profile="databaseName"
+                    type="text"
+                    value="Mailbox Database 01"
+                    maxlength="64"
+                    autocomplete="off"
+                    required
+                  />
+                </label>
+
+                <label class="field">
+                  <span>Database file path</span>
+                  <input
+                    name="databasePath"
+                    data-profile="databasePath"
+                    type="text"
+                    value="C:\ExchangeDatabases\Mailbox Database 01\Mailbox Database 01.edb"
+                    autocomplete="off"
+                    spellcheck="false"
+                    required
+                  />
+                </label>
+
+                <label class="field span-2">
+                  <span>Database log folder</span>
+                  <input
+                    name="logPath"
+                    data-profile="logPath"
+                    type="text"
+                    value="C:\ExchangeDatabases\Mailbox Database 01\Logs"
+                    autocomplete="off"
+                    spellcheck="false"
+                    required
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Automation choices</legend>
+              <div class="choice-grid">
+                <label class="choice-card">
+                  <input name="installPrerequisites" data-profile="installPrerequisites" type="checkbox" checked />
+                  <span><strong>Install required Windows features</strong><small>Uses the staged prerequisite plan before Exchange setup.</small></span>
+                </label>
+                <label class="choice-card">
+                  <input name="prepareSchema" data-profile="prepareSchema" type="checkbox" checked />
+                  <span><strong>Prepare the Active Directory schema when needed</strong><small>Skipped when durable state proves it is already complete.</small></span>
+                </label>
+                <label class="choice-card">
+                  <input name="prepareActiveDirectory" data-profile="prepareActiveDirectory" type="checkbox" checked />
+                  <span><strong>Prepare the Exchange organization when needed</strong><small>Uses the organization name above only for a new organization.</small></span>
+                </label>
+                <label class="choice-card">
+                  <input name="prepareDomains" data-profile="prepareDomains" type="checkbox" checked />
+                  <span><strong>Prepare all domains when needed</strong><small>Each completed preparation stage is recorded before continuing.</small></span>
+                </label>
+                <label class="choice-card">
+                  <input name="disableTelemetry" data-profile="disableTelemetry" type="checkbox" checked />
+                  <span><strong>Disable diagnostic data collection</strong><small>The exact setup switch appears in the plan before installation.</small></span>
+                </label>
+                <label class="choice-card">
+                  <input name="resumeAfterRestart" data-profile="resumeAfterRestart" type="checkbox" checked />
+                  <span><strong>Resume after a required restart</strong><small>Records the next safe stage; it does not restart without a reviewed plan.</small></span>
+                </label>
+              </div>
+            </fieldset>
+          </form>
+        </section>
+
+        <section class="surface" id="preflight" aria-labelledby="preflight-title">
+          <div class="section-heading action-heading">
+            <div>
+              <p class="eyebrow">STEP 2</p>
+              <h2 id="preflight-title">Prove the server is ready</h2>
+              <p>Every required check must pass before the install action becomes available.</p>
+            </div>
+            <button class="button primary" type="button" id="run-preflight">Run preflight</button>
+          </div>
+
+          <div class="check-grid" id="preflight-checks" aria-live="polite">
+            <article class="check-card pending" data-check="elevation">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Administrator elevation</h3><p>Not checked</p></div>
+            </article>
+            <article class="check-card pending" data-check="media">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Exchange media</h3><p>Not checked</p></div>
+            </article>
+            <article class="check-card pending" data-check="digest">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Media digest</h3><p>Not checked</p></div>
+            </article>
+            <article class="check-card pending" data-check="prerequisites">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Prerequisites</h3><p>Not checked</p></div>
+            </article>
+            <article class="check-card pending" data-check="activeDirectory">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Active Directory state</h3><p>Not checked</p></div>
+            </article>
+            <article class="check-card pending" data-check="restart">
+              <span class="check-icon" aria-hidden="true">—</span>
+              <div><h3>Pending restart</h3><p>Not checked</p></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="surface" id="review" aria-labelledby="review-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">STEP 3</p>
+              <h2 id="review-title">Review the exact plan</h2>
+              <p>The plan is generated from the validated profile and never contains a password or token.</p>
+            </div>
+            <span class="status-chip pending" id="plan-status">Waiting for preflight</span>
+          </div>
+          <ol class="plan-list" id="plan-list">
+            <li class="empty-row">Run preflight to generate the exact staged plan.</li>
+          </ol>
+          <label class="acknowledgement">
+            <input type="checkbox" id="accept-license" />
+            <span>
+              <strong>I reviewed this plan and accept the applicable Exchange license terms.</strong>
+              <small>This confirmation is intentionally never pre-selected.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="surface" id="installation" aria-labelledby="installation-title">
+          <div class="section-heading action-heading">
+            <div>
+              <p class="eyebrow">STEP 4</p>
+              <h2 id="installation-title">Install in resumable stages</h2>
+              <p id="installation-summary">No installation is running.</p>
+            </div>
+            <div class="action-row">
+              <button class="button tonal hidden" type="button" id="resume-install">Resume installation</button>
+              <button class="button primary" type="button" id="start-install" disabled>Start installation</button>
+              <button class="button danger hidden" type="button" id="request-cancel">Cancel at safe boundary</button>
+            </div>
+          </div>
+
+          <div class="safe-cancel-note hidden" id="safe-cancel-note" role="status">
+            Cancellation is requested. The active operation will finish its current safe unit before stopping.
+          </div>
+
+          <ol class="stage-list" id="stage-list" aria-live="polite">
+            <li class="empty-row">Stages will appear after preflight.</li>
+          </ol>
+
+          <aside class="stage-recovery hidden" id="stage-recovery" aria-labelledby="stage-recovery-title">
+            <div>
+              <p class="eyebrow">RECOVERY AVAILABLE</p>
+              <h3 id="stage-recovery-title">This stage stopped without discarding completed work.</h3>
+              <p id="stage-recovery-message"></p>
+            </div>
+            <div class="action-row">
+              <button class="button primary" type="button" id="retry-stage">Retry this stage</button>
+              <button class="button secondary" type="button" id="resume-from-recovery">Resume from durable state</button>
+            </div>
+          </aside>
+        </section>
+
+        <section class="surface" id="logs" aria-labelledby="logs-title">
+          <div class="section-heading action-heading">
+            <div>
+              <p class="eyebrow">STEP 5</p>
+              <h2 id="logs-title">Redacted local logs</h2>
+              <p>Sensitive-looking values are hidden before log lines are rendered in this window.</p>
+            </div>
+            <div class="action-row">
+              <button class="button secondary" type="button" id="reveal-logs">Open log folder</button>
+              <button class="button tonal" type="button" id="export-logs">Export redacted logs…</button>
+            </div>
+          </div>
+          <div class="log-view" id="log-view" role="log" aria-live="off" tabindex="0">
+            <p class="empty-row">No installer events have been recorded.</p>
+          </div>
+        </section>
+
+        <section class="surface" id="repair" aria-labelledby="repair-title">
+          <div class="section-heading action-heading">
+            <div>
+              <p class="eyebrow">OPTIONAL REPAIR ADVISER</p>
+              <h2 id="repair-title">OpenCode-powered installation fixer</h2>
+              <p>The adviser sees only bounded redacted diagnostics in an isolated folder. It returns fixed repair action IDs and cannot execute server changes directly.</p>
+            </div>
+            <div class="action-row">
+              <button class="button secondary" type="button" id="opencode-refresh">Check OpenCode</button>
+              <button class="button tonal" type="button" id="opencode-install">Install or repair OpenCode</button>
+            </div>
+          </div>
+          <p class="status-chip pending" id="opencode-status" role="status">OpenCode has not been checked.</p>
+          <fieldset class="field-group">
+            <legend>Approval mode</legend>
+            <label class="choice-card warning-choice">
+              <input type="checkbox" id="yolo-mode" />
+              <span><strong>Enable YOLO mode for the generated Exchange repair plan</strong><small>Off by default. This may auto-approve only fixed, reversible Exchange repair action IDs shown by this app. It never approves arbitrary commands, credential access, unrelated folders, destructive unbounded actions, policy bypasses, or hidden network destinations.</small></span>
+            </label>
+            <label class="field hidden" id="yolo-confirmation-field">
+              <span>Type <strong>ENABLE BOUNDED YOLO</strong> to confirm this exact scope</span>
+              <input id="yolo-confirmation" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+          </fieldset>
+          <div class="action-row">
+            <button class="button primary" type="button" id="repair-run">Generate bounded repair advice</button>
+            <button class="button tonal" type="button" id="repair-apply" disabled>Apply reviewed repair plan</button>
+            <button class="button danger" type="button" id="repair-stop">Emergency stop</button>
+          </div>
+          <div class="log-view" id="repair-output" role="log" aria-live="polite" tabindex="0"><p class="empty-row">No repair-adviser result is available.</p></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
