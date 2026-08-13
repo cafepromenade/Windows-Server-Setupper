@@ -36,7 +36,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or -not $blob.content) { throw 'The public catalog blob could not be resolved.' }
     $catalogText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(([string]$blob.content -replace '\s', '')))
     $catalog = $catalogText | ConvertFrom-Json
-    if ($catalog.schemaVersion -ne 1 -or -not $catalog.dishes) { throw 'The public catalog schema is unavailable or unsupported.' }
+    if ([string]$catalog.schemaVersion -cne '1.0.0' -or -not $catalog.dishes) { throw 'The public catalog schema is unavailable or unsupported.' }
 
     $releasePages = & gh api "repos/$Repository/releases?per_page=100" --paginate --slurp
     if ($LASTEXITCODE -ne 0) { throw 'Existing project releases could not be inspected for prior code-name use.' }
