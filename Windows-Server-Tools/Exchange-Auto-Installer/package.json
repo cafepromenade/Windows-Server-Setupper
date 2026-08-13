@@ -8,7 +8,10 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "clean": "node scripts/clean-dist.js",
+    "prebuild": "npm run clean",
     "build": "electron-builder --dir --win --publish never",
+    "prepackage": "npm run clean",
     "package": "electron-builder --win squirrel --publish never"
   },
   "dependencies": {
@@ -24,7 +27,7 @@
     "productName": "Exchange Auto Installer",
     "artifactName": "ExchangeAutoInstaller-${version}-${arch}.${ext}",
     "directories": {
-      "output": "dist/squirrel-windows"
+      "output": "dist"
     },
     "files": [
       "src/**/*",
@@ -43,6 +46,7 @@
           ]
         }
       ],
+      "signExecutable": false,
       "signAndEditExecutable": false,
       "legalTrademarks": ""
     },
