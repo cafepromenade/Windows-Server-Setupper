@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)]
     [string]$Repository,
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+    [long]$Seed = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,8 +46,12 @@ try {
     $catalogTags = @(& gh api "repos/$catalogRepository/releases?per_page=100" --paginate --jq '.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("catalog-v1"))) | .tag_name')
     if ($LASTEXITCODE -ne 0 -or $catalogTags.Count -eq 0) { throw 'No published catalog-v1 release was found.' }
 
+    $dishes = @($catalog.dishes)
+    if ($dishes.Count -eq 0) { throw 'The public catalog contains no dish records.' }
+    $startIndex = [int]([Math]::Abs($Seed % $dishes.Count))
     $selected = $null
-    foreach ($dish in $catalog.dishes) {
+    for ($offset = 0; $offset -lt $dishes.Count; $offset++) {
+        $dish = $dishes[($startIndex + $offset) % $dishes.Count]
         $codeName = "$($dish.name.en) · $($dish.name.zhHant)"
         if ($usedText.Contains($codeName, [StringComparison]::Ordinal)) { continue }
         $assetName = [IO.Path]::GetFileName([string]$dish.image.path)
