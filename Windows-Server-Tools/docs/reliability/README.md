@@ -5,6 +5,7 @@ This category documents how Windows Server Tools preserves completed work, repor
 ## Articles
 
 - [Error recovery and resumable operations](./error-recovery.md) — durable state, bounded retries, process containment, user-reviewed reconciliation, process-wide operation coordination, trusted continuations, accessible recovery controls, diagnostics, limitations, and historical evidence.
+- [Primary WPF universal-feature inventory](../completeness/wpf-universal-feature-inventory.md) — per-surface release evidence and explicit blockers across the complete application contract.
 
 ## Current evidence boundary
 
