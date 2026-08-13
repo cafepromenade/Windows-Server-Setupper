@@ -11,15 +11,62 @@
         Width="800"
         MinHeight="260"
         MinWidth="340"
+        Loaded="Window_Loaded"
+        KeyboardNavigation.TabNavigation="Continue"
         PreviewKeyDown="Window_PreviewKeyDown">
     <Grid>
-        <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto">
-            <Grid MinHeight="160" MinWidth="520">
-        <Image x:Name="AppLogoImage" Source="Assets/windows-server-setupper-logo-master.png" AutomationProperties.Name="Current application logo" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="48" Height="48" Margin="0,0,12,12" Stretch="Uniform"/>
-        <Button x:Name="IIS" Content="IIS" AutomationProperties.Name="Install IIS and all of its components" AutomationProperties.HelpText="Installs IIS and verifies the requested Windows feature state." HorizontalAlignment="Left" Height="29" Margin="27,23,0,0" VerticalAlignment="Top" Width="219" Click="IIS_Click"/>
-        <Button x:Name="FileAndStorage" Content="File and Storage Services" AutomationProperties.Name="Install File and Storage Services" AutomationProperties.HelpText="Installs and verifies the requested File and Storage Services features." HorizontalAlignment="Left" Height="29" Margin="263,23,0,0" VerticalAlignment="Top" Width="240" Click="FileAndStorage_Click"/>
-            </Grid>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto"
+                      KeyboardNavigation.TabNavigation="Continue">
+            <StackPanel Margin="16" MaxWidth="720">
+                <DockPanel LastChildFill="True" Margin="0,0,0,12">
+                    <Image x:Name="AppLogoImage"
+                           Source="Assets/windows-server-setupper-logo-master.png"
+                           AutomationProperties.Name="Current application logo"
+                           DockPanel.Dock="Left"
+                           Width="48"
+                           Height="48"
+                           Margin="0,0,12,0"
+                           Stretch="Uniform"/>
+                    <StackPanel>
+                        <TextBlock Text="Commonly installed server features"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.Name="Commonly installed server features heading"/>
+                        <TextBlock Text="Choose one feature group. The app reports real progress and preserves a retry route when a server command does not complete."
+                                   Margin="0,4,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DockPanel>
+                <WrapPanel>
+                    <Button x:Name="IIS"
+                            MinWidth="220"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,8,8"
+                            HorizontalContentAlignment="Center"
+                            AutomationProperties.Name="Install IIS and all of its components"
+                            AutomationProperties.HelpText="Installs IIS and verifies the requested Windows feature state."
+                            Click="IIS_Click">
+                        <TextBlock Text="Install IIS and components" TextWrapping="Wrap" TextAlignment="Center"/>
+                    </Button>
+                    <Button x:Name="FileAndStorage"
+                            MinWidth="220"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,8,8"
+                            HorizontalContentAlignment="Center"
+                            AutomationProperties.Name="Install File and Storage Services"
+                            AutomationProperties.HelpText="Installs and verifies the requested File and Storage Services features."
+                            Click="FileAndStorage_Click">
+                        <TextBlock Text="Install File and Storage Services" TextWrapping="Wrap" TextAlignment="Center"/>
+                    </Button>
+                </WrapPanel>
+                <TextBlock Margin="0,8,0,72"
+                           Text="Only one server-changing operation can run at a time. Disabled actions identify the active operation in their accessible help text."
+                           TextWrapping="Wrap"/>
+            </StackPanel>
         </ScrollViewer>
 
         <Border x:Name="OperationStatusPanel"
@@ -48,7 +95,7 @@
                             DockPanel.Dock="Left"
                             Content="Previous"
                             MinWidth="88"
-                            MinHeight="36"
+                            MinHeight="44"
                             Margin="0,0,8,0"
                             AutomationProperties.HelpText="Shows the previous pending server feature action."
                             Click="PreviousOperationButton_Click"/>
@@ -56,7 +103,7 @@
                             DockPanel.Dock="Right"
                             Content="Next"
                             MinWidth="88"
-                            MinHeight="36"
+                            MinHeight="44"
                             Margin="8,0,0,0"
                             AutomationProperties.HelpText="Shows the next pending server feature action."
                             Click="NextOperationButton_Click"/>
@@ -82,7 +129,7 @@
                            Margin="0,12,0,0">
                     <Button x:Name="RetryOperationButton"
                             AutomationProperties.HelpText="Retries the failed server feature action."
-                            MinHeight="36"
+                            MinHeight="44"
                             MaxWidth="240"
                             HorizontalContentAlignment="Center"
                             Margin="0,0,8,4"
@@ -95,7 +142,7 @@
                     <Button x:Name="DismissOperationButton"
                             Content="Dismiss"
                             AutomationProperties.HelpText="Hides this notification and returns focus to the originating control."
-                            MinHeight="36"
+                            MinHeight="44"
                             Margin="0,0,0,4"
                             Click="DismissOperationButton_Click"/>
                 </WrapPanel>
@@ -106,7 +153,7 @@
                 Visibility="Collapsed"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"
-                MinHeight="36"
+                MinHeight="44"
                 MaxWidth="280"
                 HorizontalContentAlignment="Center"
                 Margin="16"
