@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -108,6 +110,7 @@ namespace Windows_Server_Tools.Tests
             ChecksUiRecoverySourceContracts();
             ChecksWpfDependencyContracts();
             ChecksWpfLogoContracts();
+            await ChecksAutomaticUpdateContracts();
         }
 
         private static async Task RetriesOnlyExplicitlyIdempotentWork()
@@ -1765,6 +1768,312 @@ namespace Windows_Server_Tools.Tests
             string path = Path.Combine(Path.GetTempPath(), "windows-server-tools-recovery-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(path);
             return path;
+        }
+
+        private static async Task ChecksAutomaticUpdateContracts()
+        {
+            byte[] package = Encoding.UTF8.GetBytes("verified unsigned installer fixture");
+            string packageHash;
+            using (var sha = SHA256.Create())
+            {
+                packageHash = BitConverter.ToString(sha.ComputeHash(package))
+                    .Replace("-", string.Empty)
+                    .ToLowerInvariant();
+            }
+
+            string manifestJson = BuildUpdateManifestJson("2.0.0.0", packageHash, package.Length);
+            var handler = new UpdateHttpHandler(manifestJson, package);
+            string testDirectory = NewTemporaryDirectory();
+            string stagingDirectory = Path.Combine(testDirectory, "Staging");
+            string statePath = Path.Combine(testDirectory, "update-state.json");
+            var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            var service = new UpdateService(
+                client,
+                new Uri("https://updates.example.test/manifest.json"),
+                stagingDirectory,
+                statePath,
+                protectedStorage: false);
+
+            try
+            {
+                UpdateCheckResult available = await service.CheckAsync(
+                    new Version(1, 0, 0, 0),
+                    CancellationToken.None);
+                Check(available.Availability == UpdateAvailability.Available
+                    && available.Manifest.ParsedVersion == new Version(2, 0, 0, 0),
+                    "a newer strict HTTPS manifest should report an available update");
+
+                UpdateCheckResult current = await service.CheckAsync(
+                    new Version(2, 0, 0, 0),
+                    CancellationToken.None);
+                Check(current.Availability == UpdateAvailability.Current,
+                    "the same manifest version should report the application current");
+
+                int lastProgress = -1;
+                string staged = await service.DownloadAndStageAsync(
+                    available.Manifest,
+                    new ImmediateProgress(value => lastProgress = value),
+                    CancellationToken.None);
+                Check(File.Exists(staged) && File.ReadAllBytes(staged).SequenceEqual(package),
+                    "a package should be promoted only after its size and SHA-256 match");
+                Check(lastProgress == 100,
+                    "a complete package download should report 100 percent progress");
+
+                service.SaveReadyState(new Version(1, 0, 0, 0), available.Manifest, staged);
+                UpdateInstallState state = service.LoadState();
+                Check(state != null
+                    && state.TargetVersion == "2.0.0.0"
+                    && !state.InstallerLaunched
+                    && service.ValidateStagedPackage(state),
+                    "verified staged state should persist without claiming the installer launched");
+                service.MarkInstallerLaunched();
+                Check(service.LoadState().InstallerLaunched,
+                    "an explicit installer launch should be recorded for rollback diagnosis");
+
+                File.AppendAllText(staged, "tampered");
+                Check(!service.ValidateStagedPackage(service.LoadState()),
+                    "a corrupt staged package should fail validation before restart");
+                service.ClearStateAndStagedPackage();
+                Check(!File.Exists(staged) && !File.Exists(statePath),
+                    "rollback cleanup should remove corrupt staging and its state record");
+
+                handler.ManifestJson = BuildUpdateManifestJson(
+                    "2.0.0.0",
+                    new string('0', 64),
+                    package.Length);
+                UpdateManifest badHashManifest = (await service.CheckAsync(
+                    new Version(1, 0, 0, 0),
+                    CancellationToken.None)).Manifest;
+                bool hashRejected = false;
+                try
+                {
+                    await service.DownloadAndStageAsync(
+                        badHashManifest,
+                        null,
+                        CancellationToken.None);
+                }
+                catch (InvalidDataException)
+                {
+                    hashRejected = true;
+                }
+
+                Check(hashRejected && !Directory.GetFiles(stagingDirectory, "*.download-*").Any(),
+                    "a hash mismatch should reject and remove the incomplete package");
+
+                bool cancelled = false;
+                using (var cancellation = new CancellationTokenSource())
+                {
+                    cancellation.Cancel();
+                    try
+                    {
+                        await service.DownloadAndStageAsync(
+                            badHashManifest,
+                            null,
+                            cancellation.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        cancelled = true;
+                    }
+                }
+
+                Check(cancelled && !Directory.GetFiles(stagingDirectory, "*.download-*").Any(),
+                    "cancelled downloads should retain no partial package");
+
+                CheckThrowsInvalidManifest(
+                    manifestJson.Replace(
+                        "\"version\":\"2.0.0.0\"",
+                        "\"version\":\"2.0.0.0\",\"version\":\"3.0.0.0\""),
+                    "duplicate update manifest properties should be rejected");
+                CheckThrowsInvalidManifest(
+                    manifestJson.TrimEnd('}') + ",\"unexpected\":true}",
+                    "unknown update manifest properties should be rejected");
+                CheckThrowsInvalidManifest(
+                    manifestJson.Replace("https://updates.example.test/package.exe", "http://updates.example.test/package.exe"),
+                    "non-HTTPS package URLs should be rejected");
+
+                bool redirectRejected = false;
+                handler.RedirectManifest = true;
+                try
+                {
+                    await service.CheckAsync(new Version(1, 0), CancellationToken.None);
+                }
+                catch (InvalidDataException)
+                {
+                    redirectRejected = true;
+                }
+                finally
+                {
+                    handler.RedirectManifest = false;
+                }
+                Check(redirectRejected, "update manifest redirects should be refused");
+
+                bool offlineReported = false;
+                handler.ThrowNetwork = true;
+                try
+                {
+                    await service.CheckAsync(new Version(1, 0), CancellationToken.None);
+                }
+                catch (HttpRequestException)
+                {
+                    offlineReported = true;
+                }
+                finally
+                {
+                    handler.ThrowNetwork = false;
+                }
+                Check(offlineReported, "offline update checks should return a non-success network result");
+
+                handler.ManifestJson = manifestJson;
+                handler.RedirectPackageOnce = true;
+                UpdateManifest redirectedPackageManifest = (await service.CheckAsync(
+                    new Version(1, 0),
+                    CancellationToken.None)).Manifest;
+                string redirectedStage = await service.DownloadAndStageAsync(
+                    redirectedPackageManifest,
+                    null,
+                    CancellationToken.None);
+                Check(File.Exists(redirectedStage),
+                    "a bounded HTTPS package redirect should retain manifest hash validation");
+                File.Delete(redirectedStage);
+
+                string repositoryRoot = FindRepositoryRoot();
+                string project = Path.Combine(repositoryRoot, "Windows-Server-Tools", "Windows-Server-Tools");
+                string updateSource = File.ReadAllText(Path.Combine(
+                    project,
+                    "MainWindow.Update.cs"));
+                string xaml = File.ReadAllText(Path.Combine(
+                    project,
+                    "MainWindow.xaml"));
+                string appConfig = File.ReadAllText(Path.Combine(
+                    project,
+                    "App.config"));
+                Check(updateSource.Contains("TimeSpan.FromHours(6)")
+                    && updateSource.Contains("_ = CheckForUpdatesAsync(false, null)")
+                    && updateSource.Contains("CheckForUpdatesButton_Click"),
+                    "the updater should provide bounded scheduled, startup, and manual checks");
+                Check(updateSource.Contains("GetUpdateRestartBlockReason")
+                    && updateSource.Contains("unsaved form values")
+                    && updateSource.Contains("ValidateStagedPackage")
+                    && updateSource.Contains("MarkInstallerLaunched"),
+                    "restart should protect active and unsaved work and revalidate staged bytes");
+                Check(xaml.Contains("Restart to install update")
+                    && xaml.Contains("Cancel download")
+                    && xaml.Contains("UpdateStatusPanel")
+                    && xaml.Contains("AutomationProperties.LiveSetting=\"Polite\""),
+                    "the native update surface should expose ready, cancellation, and non-blocking live states");
+                Check(appConfig.Contains("https://raw.githubusercontent.com/")
+                    && !appConfig.Contains("http://raw.githubusercontent.com/"),
+                    "the configured update feed should be HTTPS");
+            }
+            finally
+            {
+                service.ClearStateAndStagedPackage();
+                service.Dispose();
+                client.Dispose();
+                if (Directory.Exists(testDirectory))
+                {
+                    Directory.Delete(testDirectory, true);
+                }
+            }
+        }
+
+        private static void CheckThrowsInvalidManifest(string json, string description)
+        {
+            bool rejected = false;
+            try
+            {
+                UpdateService.ParseAndValidateManifest(Encoding.UTF8.GetBytes(json));
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is ArgumentException)
+            {
+                rejected = true;
+            }
+
+            Check(rejected, description);
+        }
+
+        private static string BuildUpdateManifestJson(string version, string sha256, long size)
+        {
+            return "{"
+                + "\"schemaVersion\":1,"
+                + "\"version\":\"" + version + "\","
+                + "\"releaseNotesUrl\":\"https://updates.example.test/notes\","
+                + "\"assetUrl\":\"https://updates.example.test/package.exe\","
+                + "\"sha256\":\"" + sha256 + "\","
+                + "\"sizeBytes\":" + size
+                + "}";
+        }
+
+        private sealed class UpdateHttpHandler : HttpMessageHandler
+        {
+            private readonly byte[] _package;
+
+            public UpdateHttpHandler(string manifestJson, byte[] package)
+            {
+                ManifestJson = manifestJson;
+                _package = package;
+            }
+
+            public string ManifestJson { get; set; }
+
+            public bool RedirectManifest { get; set; }
+
+            public bool RedirectPackageOnce { get; set; }
+
+            public bool ThrowNetwork { get; set; }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (ThrowNetwork)
+                {
+                    throw new HttpRequestException("offline fixture");
+                }
+                if (request.RequestUri.AbsolutePath.EndsWith("manifest.json", StringComparison.Ordinal))
+                {
+                    if (RedirectManifest)
+                    {
+                        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Redirect));
+                    }
+
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(ManifestJson, Encoding.UTF8, "application/json")
+                    });
+                }
+
+                if (RedirectPackageOnce
+                    && !string.Equals(request.RequestUri.Host, "cdn.example.test", StringComparison.Ordinal))
+                {
+                    RedirectPackageOnce = false;
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Redirect);
+                    redirect.Headers.Location = new Uri("https://cdn.example.test/package.exe");
+                    return Task.FromResult(redirect);
+                }
+
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(_package)
+                });
+            }
+        }
+
+        private sealed class ImmediateProgress : IProgress<int>
+        {
+            private readonly Action<int> _report;
+
+            public ImmediateProgress(Action<int> report)
+            {
+                _report = report;
+            }
+
+            public void Report(int value)
+            {
+                _report(value);
+            }
         }
 
         private static void Check(bool condition, string description)

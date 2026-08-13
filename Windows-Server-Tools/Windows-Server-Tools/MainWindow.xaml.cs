@@ -222,6 +222,7 @@ namespace Windows_Server_Tools
 
         protected override void OnClosed(EventArgs e)
         {
+            StopUpdateService();
             ServerMutationCoordinator.StateChanged -= ServerMutationCoordinator_StateChanged;
             foreach (IDisposable sensitiveResource in _pendingRecoveryActions.Values
                 .Select(request => request.SensitiveResource)
@@ -253,6 +254,7 @@ namespace Windows_Server_Tools
                 ConfigureAvailableServerRoles();
                 await HandleCommandLineArgs(Environment.GetCommandLineArgs());
                 ResolveRecovery("application-startup");
+                StartUpdateService();
                 return true;
             }
             catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
@@ -345,6 +347,7 @@ namespace Windows_Server_Tools
             }
 
             UpdateRecoveryControls();
+            UpdateUpdateRestartAvailability();
         }
 
         private IDisposable TryAcquireServerMutation(string operationName, IInputElement focusOrigin)
