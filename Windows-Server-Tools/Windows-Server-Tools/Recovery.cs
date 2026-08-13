@@ -1515,7 +1515,7 @@ namespace Windows_Server_Tools
                     || string.Equals(persistedState, "indeterminate", StringComparison.Ordinal))
                 {
                     int attempts = checkpointStore.GetAttempts(operation.Name);
-                    int generation = checkpointStore.GetGeneration(operation.Name);
+                    int persistedOperationGeneration = checkpointStore.GetGeneration(operation.Name);
                     resultsByName[operation.Name] = new OperationResult(
                         operation.Name,
                         false,
@@ -1523,11 +1523,11 @@ namespace Windows_Server_Tools
                         new OperationReconciliationRequiredException(operation.Name, persistedState),
                         blocked: true,
                         indeterminate: true,
-                        userRetryGeneration: generation,
+                        userRetryGeneration: persistedOperationGeneration,
                         recoveryState: persistedState,
                         reconciliationToken: CreateReconciliationToken(
                             operation.Name,
-                            generation,
+                            persistedOperationGeneration,
                             attempts));
                     continue;
                 }
