@@ -5,25 +5,79 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Windows_Server_Tools"
         mc:Ignorable="d"
-        Title="MainWindow" d:DesignHeight="557.713" d:DesignWidth="747.722" SizeToContent="WidthAndHeight">
+        Title="MainWindow"
+        Width="760"
+        Height="580"
+        MinWidth="360"
+        MinHeight="300"
+        d:DesignHeight="557.713"
+        d:DesignWidth="747.722"
+        PreviewKeyDown="MainWindow_PreviewKeyDown">
     <Grid>
-        <Button x:Name="InstallActiveDirectoryButton" Content="Submit" HorizontalAlignment="Left" Height="49" Margin="23,125,0,0" VerticalAlignment="Top" Width="226" Click="InstallActiveDirectoryButton_Click"/>
-        <TextBox x:Name="DomainNameTextBox" HorizontalAlignment="Left" Margin="27,64,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="220" Height="42"/>
+        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
+            <Grid MinWidth="729" MinHeight="520">
+        <Button x:Name="InstallActiveDirectoryButton" Content="Submit" HorizontalAlignment="Left" Height="49" Margin="23,172,0,0" VerticalAlignment="Top" Width="226" Click="InstallActiveDirectoryButton_Click"/>
+        <TextBox x:Name="DomainNameTextBox" AutomationProperties.Name="New domain name" HorizontalAlignment="Left" Margin="27,64,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="220" Height="42"/>
         <TextBlock HorizontalAlignment="Left" Margin="32,10,0,0" TextWrapping="Wrap" Text="Install Active Directory" VerticalAlignment="Top" FontSize="20" FontFamily="Bahnschrift"/>
         <TextBlock HorizontalAlignment="Left" Margin="27,43,0,0" TextWrapping="Wrap" Text="Please enter a new domain name here" VerticalAlignment="Top"/>
-        <Button Content="Set Static IP" HorizontalAlignment="Left" Margin="277,10,0,0" VerticalAlignment="Top" Height="30" Width="158" Click="Button_Click"/>
-        <TextBlock HorizontalAlignment="Left" Margin="170,192,0,0" TextWrapping="Wrap" Text="Simpsons Users" VerticalAlignment="Top" FontSize="20" FontFamily="Bahnschrift"/>
-        <Button Content="Import, Spread and Create Groups and Shared Folders" HorizontalAlignment="Left" Height="32" Margin="27,221,0,0" VerticalAlignment="Top" Width="412" Click="Button_Click_1"/>
+        <TextBlock HorizontalAlignment="Left" Margin="27,111,0,0" TextWrapping="Wrap" Text="Directory Services Restore Mode password" VerticalAlignment="Top"/>
+        <PasswordBox x:Name="SafeModePasswordBox"
+                     AutomationProperties.Name="Directory Services Restore Mode password"
+                     HorizontalAlignment="Left"
+                     Margin="27,132,0,0"
+                     VerticalAlignment="Top"
+                     Width="220"
+                     Height="32"/>
+        <Button x:Name="SetStaticIpButton" Content="Set Static IP" HorizontalAlignment="Left" Margin="277,10,0,0" VerticalAlignment="Top" Height="30" Width="158" Click="Button_Click"/>
+        <TextBlock HorizontalAlignment="Left" Margin="170,238,0,0" TextWrapping="Wrap" Text="Simpsons Users" VerticalAlignment="Top" FontSize="20" FontFamily="Bahnschrift"/>
+        <Button x:Name="SimpsonsSetupButton" Content="Import, Spread and Create Groups and Shared Folders" HorizontalAlignment="Left" Height="32" Margin="27,267,0,0" VerticalAlignment="Top" Width="412" Click="Button_Click_1"/>
         <Grid HorizontalAlignment="Left" Height="353" Margin="456,10,0,0" VerticalAlignment="Top" Width="282" Background="#FFD3EAC9">
             <TextBlock HorizontalAlignment="Center" Margin="0,2,0,0" TextWrapping="Wrap" Text="Software Installation" VerticalAlignment="Top" FontSize="20" FontFamily="Bahnschrift"/>
             <Button x:Name="InstallChocolateyButton" Content="Install Chocolatey" HorizontalAlignment="Left" Height="29" Margin="13,33,0,0" VerticalAlignment="Top" Width="246" Click="InstallChocolateyButton_Click"/>
             <Button x:Name="InstallChocolateySoftwareButton" Content="Start installing software" HorizontalAlignment="Left" Height="27" Margin="13,140,0,0" VerticalAlignment="Top" Width="246" Click="InstallChocolateySoftwareButton_Click"/>
-            <TextBox x:Name="ChocoSoftwareTextBox" TextWrapping="Wrap" Margin="13,85,23,186"/>
+            <TextBox x:Name="ChocoSoftwareTextBox" AutomationProperties.Name="Chocolatey packages to install" TextWrapping="Wrap" Margin="13,85,23,186"/>
             <TextBlock HorizontalAlignment="Left" Margin="13,64,0,0" TextWrapping="Wrap" Text="Enter software you would like to install" VerticalAlignment="Top"/>
             <TextBlock HorizontalAlignment="Left" Margin="72,172,0,0" TextWrapping="Wrap" VerticalAlignment="Top" FontSize="20" FontFamily="Bahnschrift"><Run Language="en-ca" Text="Omega Server"/></TextBlock>
-            <Button x:Name="OmegaServerPromoteButton" Content="Promote to Omega Server" HorizontalAlignment="Left" Height="37" Margin="13,201,0,0" VerticalAlignment="Top" Width="155" IsEnabled="False"/>
-            <Button x:Name="SCCMButton" Content="SCCM Only" HorizontalAlignment="Left" Height="37" Margin="173,201,0,0" VerticalAlignment="Top" Width="99" IsEnabled="False" Click="SCCMButton_Click"/>
-            <Button x:Name="SideServerButton" IsEnabled="False" Content="Install Side Server" HorizontalAlignment="Left" Height="35" Margin="13,243,0,0" VerticalAlignment="Top" Width="259"/>
+            <Button x:Name="OmegaServerPromoteButton"
+                    Content="Promote to Omega Server"
+                    HorizontalAlignment="Left"
+                    Height="37"
+                    Margin="13,201,0,0"
+                    VerticalAlignment="Top"
+                    Width="155"
+                    IsEnabled="False"
+                    ToolTip="Unavailable until a credential-safe Omega Server installer is published and pinned."
+                    ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.HelpText="Unavailable until a credential-safe Omega Server installer is published and pinned."/>
+            <Button x:Name="SCCMButton"
+                    Content="SCCM Only"
+                    HorizontalAlignment="Left"
+                    Height="37"
+                    Margin="173,201,0,0"
+                    VerticalAlignment="Top"
+                    Width="99"
+                    IsEnabled="False"
+                    Click="SCCMButton_Click"
+                    ToolTip="Unavailable until a credential-safe SCCM installer is published and pinned."
+                    ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.HelpText="Unavailable until a credential-safe SCCM installer is published and pinned."/>
+            <Button x:Name="SideServerButton"
+                    IsEnabled="False"
+                    Content="Install Side Server"
+                    HorizontalAlignment="Left"
+                    Height="35"
+                    Margin="13,243,0,0"
+                    VerticalAlignment="Top"
+                    Width="259"
+                    ToolTip="Unavailable until a credential-safe Side Server installer is published and pinned."
+                    ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.HelpText="Unavailable until a credential-safe Side Server installer is published and pinned."/>
+            <TextBlock HorizontalAlignment="Left"
+                       Margin="13,284,13,0"
+                       VerticalAlignment="Top"
+                       TextWrapping="Wrap"
+                       Text="Server-role installers are unavailable until credential-safe builds are published and pinned."/>
         </Grid>
         <Grid HorizontalAlignment="Left" Height="1" Margin="23,270,0,0" VerticalAlignment="Top" Width="9"/>
         <Grid x:Name="InstallServerStuffGrid" HorizontalAlignment="Center" Height="152" Margin="0,368,0,0" VerticalAlignment="Top" Width="729" Background="#FFB4E6E7">
@@ -31,6 +85,128 @@
             <Button x:Name="CommonInstallStuffButton" Content="Open commonly stuff menu" HorizontalAlignment="Left" Height="28" Margin="9,31,0,0" VerticalAlignment="Top" Width="169" Click="CommonInstallStuffButton_Click"/>
         </Grid>
         <Button x:Name="AdapterSettingsButton" Content="Network Adapter Settings" HorizontalAlignment="Left" Height="26" Margin="277,59,0,0" VerticalAlignment="Top" Width="162" Click="Button_Click_2"/>
+            </Grid>
+        </ScrollViewer>
+
+        <Button x:Name="ReviewPendingRecoveryButton"
+                Panel.ZIndex="19"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="16"
+                MinWidth="180"
+                MinHeight="36"
+                Content="Review pending actions"
+                AutomationProperties.HelpText="Reopens recovery actions that are still waiting to be retried."
+                Click="ReviewPendingRecoveryButton_Click"/>
+
+        <Border x:Name="RecoveryNotification"
+                Panel.ZIndex="20"
+                Visibility="Collapsed"
+                AutomationProperties.LiveSetting="Assertive"
+                AutomationProperties.Name="Operation status and recovery actions"
+                KeyboardNavigation.TabNavigation="Local"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                MaxWidth="520"
+                MaxHeight="320"
+                Margin="16"
+                Padding="16"
+                CornerRadius="12"
+                Background="#FF2E2E2E"
+                BorderBrush="#FF777777"
+                BorderThickness="1"
+                Focusable="False"
+                GotKeyboardFocus="RecoveryNotification_GotKeyboardFocus">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="RecoveryTitleText"
+                           Grid.Row="0"
+                           AutomationProperties.LiveSetting="Assertive"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           FontSize="15"
+                           TextWrapping="Wrap"/>
+                <DockPanel x:Name="RecoveryNavigationPanel" Grid.Row="1" Margin="0,8,0,0" LastChildFill="True">
+                    <Button x:Name="PreviousRecoveryButton"
+                            DockPanel.Dock="Left"
+                            Content="Previous"
+                            MinWidth="88"
+                            MinHeight="36"
+                            Margin="0,0,8,0"
+                            AutomationProperties.HelpText="Shows the previous pending recovery action."
+                            Click="PreviousRecoveryButton_Click"/>
+                    <Button x:Name="NextRecoveryButton"
+                            DockPanel.Dock="Right"
+                            Content="Next"
+                            MinWidth="88"
+                            MinHeight="36"
+                            Margin="8,0,0,0"
+                            AutomationProperties.HelpText="Shows the next pending recovery action."
+                            Click="NextRecoveryButton_Click"/>
+                    <TextBlock x:Name="RecoveryPositionText"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               Foreground="White"
+                               AutomationProperties.LiveSetting="Polite"
+                               Text="Pending action 1 of 1"/>
+                </DockPanel>
+                <ScrollViewer Grid.Row="2"
+                               Margin="0,6,0,12"
+                              MaxHeight="130"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Focusable="True"
+                              AutomationProperties.Name="Recovery details">
+                    <StackPanel>
+                        <TextBlock x:Name="RecoveryMessageText"
+                                   AutomationProperties.LiveSetting="Assertive"
+                                   Foreground="White"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RecoverySupplementalText"
+                                   Visibility="Collapsed"
+                                   Foreground="White"
+                                   Margin="0,8,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+                <WrapPanel Grid.Row="3" HorizontalAlignment="Right">
+                    <Button x:Name="RetryRecoveryButton"
+                            Content="Retry failed action"
+                            AutomationProperties.HelpText="Retries only the failed or incomplete action. Completed setup steps are preserved."
+                            MinWidth="132"
+                            MinHeight="36"
+                            Margin="0,0,8,0"
+                            Click="RetryRecoveryButton_Click"/>
+                    <Button x:Name="MarkRecoveryCompletedButton"
+                            Content="It completed — continue"
+                            Visibility="Collapsed"
+                            AutomationProperties.HelpText="Confirms that the uncertain action completed and was applied, then continues the remaining setup without replaying it."
+                            MinWidth="150"
+                            MinHeight="36"
+                            Margin="0,0,8,0"
+                            Click="MarkRecoveryCompletedButton_Click"/>
+                    <Button x:Name="OpenRecoveryLogButton"
+                            Content="Open error log"
+                            AutomationProperties.HelpText="Opens the local diagnostic log folder."
+                            MinWidth="108"
+                            MinHeight="36"
+                            Margin="0,0,8,0"
+                            Click="OpenRecoveryLogButton_Click"/>
+                    <Button x:Name="DismissRecoveryButton"
+                            Content="Dismiss"
+                            AutomationProperties.HelpText="Hides this notification without discarding resumable setup state."
+                            MinWidth="82"
+                            MinHeight="36"
+                            Click="DismissRecoveryButton_Click"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
 
     </Grid>
 </Window>

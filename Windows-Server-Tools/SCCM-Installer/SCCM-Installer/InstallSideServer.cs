@@ -15,7 +15,11 @@ namespace SCCM_Installer
         {
             EnableStuff = false;
             MainTextBox.Text += "\nInstalling SQL Server";
-            await InstallSQLServer();
+            if (!await InstallSQLServer())
+            {
+                EnableStuff = true;
+                return;
+            }
             MainTextBox.Text += "\nDownloading reporting services";
             new WebClient().DownloadFile("http://house.bigheados.com/files/sqlreporting.exe", Environment.GetEnvironmentVariable("APPDATA") + "\\SQLReporting.exe");
             MainTextBox.Text += "\nInstalling reporting services"; 
