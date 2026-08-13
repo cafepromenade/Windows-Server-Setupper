@@ -4,8 +4,8 @@
   "entries": [
     {
       "path": "Windows-Server-Tools/Deps/exchange.iso",
-      "pointerText": "version desktop-material/cheap-lfs/v1\nrelease-tag assets\nasset-name exchange.iso\nsize 6402453504\nsha256 cd2b13f2c297187776af4cff3541b4be3c677cf907cca69d85ab0e2b70377bd1\npart 43c47983e2d45c5e5c457d837575a1ec0dff26ff39fb39eb47e72e3a9702868d 524288000 exchange.iso.part001\npart ed617364c8098d18cd6f5fe2c10c2cc3de50e461e17ea559b6c1150b8a2719a6 524288000 exchange.iso.part002\npart 02280b5c116530062e7fd9212c8f342442c6aed71daad343983cfc79e8ba16c5 524288000 exchange.iso.part003\npart 04c67c8c65a3ba17cb8182efe54f244595a47801f1671b8910f5f55acf1fe5d2 524288000 exchange.iso.part004\npart 1780054a722f5a98513d8491de2f51eee77d6929b0484c2cbf5eca920d785df9 524288000 exchange.iso.part005\npart 37db5509b4f5432dca279f5e97431a42d0ac383c42a7283a0596ee5919b787c4 524288000 exchange.iso.part006\npart 2a6952f433eb1ba262d54c527dc010f52d0fe932c07ae7c0af52707487327fe5 524288000 exchange.iso.part007\npart 837ab1d1b2a943cc61cfcdf5f0c1ae11bbc45c32be87c71b2b9cd8377d7368d5 524288000 exchange.iso.part008\npart 903fa7b2a7f4e4391e674e65151d80dd1f29e273dcee873ab9cad3a56b63ea54 524288000 exchange.iso.part009\npart 2e907239bd1b6412cee82d2c510c07d8a3ce5e5e3aac9580c77a2775599a98bd 524288000 exchange.iso.part010\npart e269c781bb4b13533bea7a84bf1ebd74a1744e5f5648cf97c581f4049c951643 524288000 exchange.iso.part011\npart 61d40fae01926c4f79d2497d8a02b39e9c14d1feaf6c394a7d8a24f697e3006e 524288000 exchange.iso.part012\npart e79f83adebc2ac71b5871b336d87b74358dea4b5866c44a576987f247dafb70b 110997504 exchange.iso.part013\n",
-      "pointerSha256": "b62d0919df304b42f88678a30e2a16543c9f7684de2d6ee57384a49b95844675",
+      "pointerText": "version desktop-material/cheap-lfs/v1\nrelease-tag assets\nasset-name exchange.iso\nsize 6402453504\nsha256 cd2b13f2c297187776af4cff3541b4be3c677cf907cca69d85ab0e2b70377bd1\npart-deflate 43c47983e2d45c5e5c457d837575a1ec0dff26ff39fb39eb47e72e3a9702868d 524288000 344216081 exchange.iso.part001.cheap-lfs-43c47983e2d4.deflate\npart-deflate ed617364c8098d18cd6f5fe2c10c2cc3de50e461e17ea559b6c1150b8a2719a6 524288000 222980633 exchange.iso.part002.cheap-lfs-ed617364c809.deflate\npart-deflate 02280b5c116530062e7fd9212c8f342442c6aed71daad343983cfc79e8ba16c5 524288000 151708590 exchange.iso.part003.cheap-lfs-02280b5c1165.deflate\npart-deflate 04c67c8c65a3ba17cb8182efe54f244595a47801f1671b8910f5f55acf1fe5d2 524288000 138634491 exchange.iso.part004.cheap-lfs-04c67c8c65a3.deflate\npart-deflate 1780054a722f5a98513d8491de2f51eee77d6929b0484c2cbf5eca920d785df9 524288000 263899975 exchange.iso.part005.cheap-lfs-1780054a722f.deflate\npart-deflate 37db5509b4f5432dca279f5e97431a42d0ac383c42a7283a0596ee5919b787c4 524288000 220141992 exchange.iso.part006.cheap-lfs-37db5509b4f5.deflate\npart-deflate 2a6952f433eb1ba262d54c527dc010f52d0fe932c07ae7c0af52707487327fe5 524288000 127520498 exchange.iso.part007.cheap-lfs-2a6952f433eb.deflate\npart-deflate 837ab1d1b2a943cc61cfcdf5f0c1ae11bbc45c32be87c71b2b9cd8377d7368d5 524288000 109898658 exchange.iso.part008.cheap-lfs-837ab1d1b2a9.deflate\npart-deflate 903fa7b2a7f4e4391e674e65151d80dd1f29e273dcee873ab9cad3a56b63ea54 524288000 71742447 exchange.iso.part009.cheap-lfs-903fa7b2a7f4.deflate\npart-deflate 2e907239bd1b6412cee82d2c510c07d8a3ce5e5e3aac9580c77a2775599a98bd 524288000 115583596 exchange.iso.part010.cheap-lfs-2e907239bd1b.deflate\npart-deflate e269c781bb4b13533bea7a84bf1ebd74a1744e5f5648cf97c581f4049c951643 524288000 173612443 exchange.iso.part011.cheap-lfs-e269c781bb4b.deflate\npart-deflate 61d40fae01926c4f79d2497d8a02b39e9c14d1feaf6c394a7d8a24f697e3006e 524288000 119198829 exchange.iso.part012.cheap-lfs-61d40fae0192.deflate\npart-deflate e79f83adebc2ac71b5871b336d87b74358dea4b5866c44a576987f247dafb70b 110997504 46091567 exchange.iso.part013.cheap-lfs-e79f83adebc2.deflate\n",
+      "pointerSha256": "6f0ec9d2483b079911f6fa66c9b281e00913062122e0cd5cc6fd411a484698f7",
       "sizeInBytes": 6402453504,
       "sha256": "cd2b13f2c297187776af4cff3541b4be3c677cf907cca69d85ab0e2b70377bd1",
       "source": {
@@ -13,95 +13,108 @@
         "releaseTag": "assets",
         "parts": [
           {
-            "assetName": "exchange.iso.part001",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part001.cheap-lfs-43c47983e2d4.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "43c47983e2d45c5e5c457d837575a1ec0dff26ff39fb39eb47e72e3a9702868d"
+            "storedSizeInBytes": 344216081,
+            "sha256": "43c47983e2d45c5e5c457d837575a1ec0dff26ff39fb39eb47e72e3a9702868d",
+            "storedSha256": "22c08957d44f10ab4918c2fa1de6bc2cf5cb461d048f87302cd6e111c852f5a3"
           },
           {
-            "assetName": "exchange.iso.part002",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part002.cheap-lfs-ed617364c809.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "ed617364c8098d18cd6f5fe2c10c2cc3de50e461e17ea559b6c1150b8a2719a6"
+            "storedSizeInBytes": 222980633,
+            "sha256": "ed617364c8098d18cd6f5fe2c10c2cc3de50e461e17ea559b6c1150b8a2719a6",
+            "storedSha256": "8ac9693cad752d37bf3085c754e0b4c893a6d37d98d6410dd3456ba8f417aff8"
           },
           {
-            "assetName": "exchange.iso.part003",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part003.cheap-lfs-02280b5c1165.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "02280b5c116530062e7fd9212c8f342442c6aed71daad343983cfc79e8ba16c5"
+            "storedSizeInBytes": 151708590,
+            "sha256": "02280b5c116530062e7fd9212c8f342442c6aed71daad343983cfc79e8ba16c5",
+            "storedSha256": "2b91f3d615520be2bb6f9f1937a8e71b8cbb7e20d9ada88a27fe4be94db7e430"
           },
           {
-            "assetName": "exchange.iso.part004",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part004.cheap-lfs-04c67c8c65a3.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "04c67c8c65a3ba17cb8182efe54f244595a47801f1671b8910f5f55acf1fe5d2"
+            "storedSizeInBytes": 138634491,
+            "sha256": "04c67c8c65a3ba17cb8182efe54f244595a47801f1671b8910f5f55acf1fe5d2",
+            "storedSha256": "ba6eb192b775aab8135133cfc6959690a0a7c60b1af56b16e7b033707b15fc3e"
           },
           {
-            "assetName": "exchange.iso.part005",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part005.cheap-lfs-1780054a722f.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "1780054a722f5a98513d8491de2f51eee77d6929b0484c2cbf5eca920d785df9"
+            "storedSizeInBytes": 263899975,
+            "sha256": "1780054a722f5a98513d8491de2f51eee77d6929b0484c2cbf5eca920d785df9",
+            "storedSha256": "a5b3b083c494f2cb960de04689ae3d172b7468f59b06f6918c7a6bd595955d21"
           },
           {
-            "assetName": "exchange.iso.part006",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part006.cheap-lfs-37db5509b4f5.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "37db5509b4f5432dca279f5e97431a42d0ac383c42a7283a0596ee5919b787c4"
+            "storedSizeInBytes": 220141992,
+            "sha256": "37db5509b4f5432dca279f5e97431a42d0ac383c42a7283a0596ee5919b787c4",
+            "storedSha256": "03ac31c07caf2bcc11d9ac05b85faa0bc88ecd3e87f5cc6b40749adc3ae28fa1"
           },
           {
-            "assetName": "exchange.iso.part007",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part007.cheap-lfs-2a6952f433eb.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "2a6952f433eb1ba262d54c527dc010f52d0fe932c07ae7c0af52707487327fe5"
+            "storedSizeInBytes": 127520498,
+            "sha256": "2a6952f433eb1ba262d54c527dc010f52d0fe932c07ae7c0af52707487327fe5",
+            "storedSha256": "926cb845f2534d1af05df91480b888c60a12ef739ca5099b38ce08e18c14e08d"
           },
           {
-            "assetName": "exchange.iso.part008",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part008.cheap-lfs-837ab1d1b2a9.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "837ab1d1b2a943cc61cfcdf5f0c1ae11bbc45c32be87c71b2b9cd8377d7368d5"
+            "storedSizeInBytes": 109898658,
+            "sha256": "837ab1d1b2a943cc61cfcdf5f0c1ae11bbc45c32be87c71b2b9cd8377d7368d5",
+            "storedSha256": "f110b27327ec6f7d7fcd0c1fa79856b5068b7926b7f19880aa915bd26bed1050"
           },
           {
-            "assetName": "exchange.iso.part009",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part009.cheap-lfs-903fa7b2a7f4.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "903fa7b2a7f4e4391e674e65151d80dd1f29e273dcee873ab9cad3a56b63ea54"
+            "storedSizeInBytes": 71742447,
+            "sha256": "903fa7b2a7f4e4391e674e65151d80dd1f29e273dcee873ab9cad3a56b63ea54",
+            "storedSha256": "1aaa18d49afc28e5b444049244ff68dfbfdd75cd5c33fc17ccd21cb0ca6a899a"
           },
           {
-            "assetName": "exchange.iso.part010",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part010.cheap-lfs-2e907239bd1b.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "2e907239bd1b6412cee82d2c510c07d8a3ce5e5e3aac9580c77a2775599a98bd"
+            "storedSizeInBytes": 115583596,
+            "sha256": "2e907239bd1b6412cee82d2c510c07d8a3ce5e5e3aac9580c77a2775599a98bd",
+            "storedSha256": "ea21ebbeb7a7ba181e44e1f4be372cea8f35e9fee4cde007bce354e8714336fe"
           },
           {
-            "assetName": "exchange.iso.part011",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part011.cheap-lfs-e269c781bb4b.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "e269c781bb4b13533bea7a84bf1ebd74a1744e5f5648cf97c581f4049c951643"
+            "storedSizeInBytes": 173612443,
+            "sha256": "e269c781bb4b13533bea7a84bf1ebd74a1744e5f5648cf97c581f4049c951643",
+            "storedSha256": "345cb07b8836cf9a85c5ccfbc7a55de63ca9b9b24eb43a6f089ab1de18ee807d"
           },
           {
-            "assetName": "exchange.iso.part012",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part012.cheap-lfs-61d40fae0192.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 524288000,
-            "storedSizeInBytes": 524288000,
-            "sha256": "61d40fae01926c4f79d2497d8a02b39e9c14d1feaf6c394a7d8a24f697e3006e"
+            "storedSizeInBytes": 119198829,
+            "sha256": "61d40fae01926c4f79d2497d8a02b39e9c14d1feaf6c394a7d8a24f697e3006e",
+            "storedSha256": "618c9a5363db93c6af11f3ad14ed3667b97db3d3022ba511a3c124015dba324d"
           },
           {
-            "assetName": "exchange.iso.part013",
-            "encoding": "raw",
+            "assetName": "exchange.iso.part013.cheap-lfs-e79f83adebc2.deflate",
+            "encoding": "deflate-raw",
             "sizeInBytes": 110997504,
-            "storedSizeInBytes": 110997504,
-            "sha256": "e79f83adebc2ac71b5871b336d87b74358dea4b5866c44a576987f247dafb70b"
+            "storedSizeInBytes": 46091567,
+            "sha256": "e79f83adebc2ac71b5871b336d87b74358dea4b5866c44a576987f247dafb70b",
+            "storedSha256": "f0973ec591d6b62ccc7a091312abe86b416f8f6e689f3baa90952fa337473968"
           }
         ]
       }

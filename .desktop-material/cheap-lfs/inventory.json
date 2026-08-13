@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "pointerSetSha256": "b2ad01130ba0d29f3c85aead62bb561565ed733d346e17ed59048b74fd2b883e",
+  "pointerSetSha256": "404c7bbf9ecf2ac1dbdc03b00b7b5e860ad85ae1a0cb7c5b0fdd328005f24335",
   "assets": [
     {
       "path": "Windows-Server-Tools/Deps/exchange.iso",
       "provider": "release",
       "size": 6402453504,
       "objectSha256": "cd2b13f2c297187776af4cff3541b4be3c677cf907cca69d85ab0e2b70377bd1",
-      "pointerBlobSha256": "b62d0919df304b42f88678a30e2a16543c9f7684de2d6ee57384a49b95844675"
+      "pointerBlobSha256": "6f0ec9d2483b079911f6fa66c9b281e00913062122e0cd5cc6fd411a484698f7"
     }
   ]
 }

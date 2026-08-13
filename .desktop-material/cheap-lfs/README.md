@@ -29,6 +29,60 @@ one or more
 `--path "repository/relative/file"` arguments. Use `--list` to print the
 available paths.
 
+## Verify without downloading
+
+Run the release-metadata verification before starting a large transfer:
+
+```powershell
+node .\.desktop-material\cheap-lfs\hydrate.mjs --verify-only
+```
+
+This validates both inventories, the checked-out pointer, its canonical LF
+identity, the complete part sequence, and each GitHub Release asset's unique
+name, uploaded state, exact stored byte size, and SHA-256 digest. The GitHub CLI
+metadata request is bounded to 16 MiB and 30 seconds. The command downloads no
+asset content and reports `"downloadedBytes":0` in its success JSON.
+
+For an offline local-only check, use either of these equivalent forms:
+
+```powershell
+node .\.desktop-material\cheap-lfs\hydrate.mjs --verify-only --static
+node .\.desktop-material\cheap-lfs\hydrate.mjs --static
+```
+
+Static verification checks the local pointer/inventory contract but cannot
+prove that release assets are still published. On Windows, Git may check the
+text pointer out with CRLF line endings. The verifier reports both the exact
+on-disk SHA-256 and the deterministic canonical LF SHA-256, and accepts only
+content whose normalized lines exactly match the managed pointer.
+
+If a previously hydrated payload is available outside this checkout, verify it
+without copying or replacing the tracked pointer:
+
+```powershell
+node .\.desktop-material\cheap-lfs\hydrate.mjs --static --verify-payload "D:\verified-cache\exchange.iso"
+```
+
+The external file must be a single-link regular file with the exact declared
+size and SHA-256. The verifier opens and hashes it read-only, reports the proof
+in `payloadProof`, and never installs, moves, renames, or deletes that file.
+
+The current Exchange ISO contract is 6,402,453,504 bytes with SHA-256
+`cd2b13f2c297187776af4cff3541b4be3c677cf907cca69d85ab0e2b70377bd1`.
+After verification succeeds, run the normal hydration command above to perform
+the actual download, per-part raw-DEFLATE decoding, and complete-file hash
+verification.
+
+Run the focused metadata regression with:
+
+```powershell
+node .\.desktop-material\cheap-lfs\verify.test.mjs
+```
+
+The regression deliberately changes pointer and part metadata in memory, proves
+the validators reject each change, restores the source metadata, and proves the
+static command returns green without downloading content.
+
 Raw, multipart, and raw-DEFLATE GitHub Release pointers are supported. The
 helper stops with an actionable message for encrypted Release or OCI registry
 pointers; restore those through Desktop Material so its password and immutable

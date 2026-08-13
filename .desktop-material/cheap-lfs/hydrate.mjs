@@ -31,6 +31,7 @@ const MaximumEntries = 4096
 const MaximumPointerBytes = 1024 * 1024
 const MaximumGhJsonBytes = 16 * 1024 * 1024
 const MaximumGhErrorBytes = 1024 * 1024
+const MaximumGhDurationMilliseconds = 30 * 1000
 const MaximumGhPrefixArguments = 8
 const MaximumGhArgumentBytes = 4096
 const NoFollowFlag = constants.O_NOFOLLOW ?? 0
@@ -54,6 +55,39 @@ function byteLength(value) {
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
+}
+
+function decodePointerText(bytes) {
+  const text = bytes.toString('utf8')
+  return Buffer.from(text, 'utf8').equals(bytes) ? text : null
+}
+
+function canonicalPointerText(text) {
+  return text.replace(/\r\n/g, '\n')
+}
+
+function normalizeCheckedOutPointerText(text) {
+  if (!text.includes('\r')) {
+    return text
+  }
+  if (/\r(?!\n)/.test(text)) {
+    return null
+  }
+  const withoutCrlf = text.replace(/\r\n/g, '')
+  if (withoutCrlf.includes('\n')) {
+    return null
+  }
+  return canonicalPointerText(text)
+}
+
+function pointerBytesMatch(bytes, entry) {
+  const text = decodePointerText(bytes)
+  const normalized =
+    text === null ? null : normalizeCheckedOutPointerText(text)
+  return (
+    normalized !== null &&
+    normalized === canonicalPointerText(entry.pointerText)
+  )
 }
 
 function samePath(left, right) {
@@ -457,6 +491,10 @@ function validateInventory(parsed) {
           sizeInBytes: partSize,
           storedSizeInBytes: storedSize,
           sha256: requireDigest(part.sha256, 'Release part SHA-256'),
+          storedSha256: requireDigest(
+            part.storedSha256,
+            'stored Release part SHA-256'
+          ),
         }
       })
       if (total !== sizeInBytes) {
@@ -516,13 +554,120 @@ function validateInventory(parsed) {
   })
 }
 
+function calculatePointerSetSha256(assets) {
+  const identity = JSON.stringify(
+    assets.map(asset => [asset.path, asset.pointerBlobSha256])
+  )
+  return sha256(Buffer.from(identity, 'utf8'))
+}
+
+function validateCloneInventory(parsed, entries) {
+  if (
+    parsed === null ||
+    typeof parsed !== 'object' ||
+    parsed.schemaVersion !== 1 ||
+    !Array.isArray(parsed.assets) ||
+    parsed.assets.length !== entries.length ||
+    parsed.assets.length > MaximumEntries
+  ) {
+    throw new HydrationError(
+      'Cheap LFS clone inventory is not a supported bounded inventory.'
+    )
+  }
+  const expectedByPath = new Map(
+    entries.map(entry => [entry.path.toLowerCase(), entry])
+  )
+  let previousPath = null
+  const assets = parsed.assets.map(raw => {
+    if (raw === null || typeof raw !== 'object') {
+      throw new HydrationError(
+        'Cheap LFS clone inventory contains a non-object asset.'
+      )
+    }
+    const path = validateRelativePath(raw.path)
+    const entry =
+      path === null ? undefined : expectedByPath.get(path.toLowerCase())
+    if (
+      path === null ||
+      entry === undefined ||
+      (previousPath !== null && previousPath.localeCompare(path) >= 0)
+    ) {
+      throw new HydrationError(
+        'Cheap LFS clone inventory paths are missing, duplicate, or unsorted.'
+      )
+    }
+    previousPath = path
+    const provider =
+      entry.source.provider === 'oci'
+        ? entry.source.registryProvider
+        : 'release'
+    if (
+      raw.provider !== provider ||
+      raw.size !== entry.sizeInBytes ||
+      raw.objectSha256 !== entry.sha256 ||
+      raw.pointerBlobSha256 !== entry.pointerSha256
+    ) {
+      throw new HydrationError(
+        'Cheap LFS clone inventory does not match hydration metadata for ' +
+          path +
+          '.'
+      )
+    }
+    expectedByPath.delete(path.toLowerCase())
+    return {
+      path,
+      pointerBlobSha256: requireDigest(
+        raw.pointerBlobSha256,
+        'clone pointer SHA-256'
+      ),
+    }
+  })
+  if (
+    expectedByPath.size !== 0 ||
+    requireDigest(parsed.pointerSetSha256, 'clone pointer-set SHA-256') !==
+      calculatePointerSetSha256(assets)
+  ) {
+    throw new HydrationError(
+      'Cheap LFS clone inventory pointer-set identity is stale.'
+    )
+  }
+  return assets
+}
+
 function parseArguments(argv) {
   const selected = []
   let listOnly = false
+  let verifyOnly = false
+  let staticOnly = false
+  let verifyPayload = null
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index]
     if (argument === '--list') {
       listOnly = true
+      continue
+    }
+    if (argument === '--verify-only') {
+      verifyOnly = true
+      continue
+    }
+    if (argument === '--static') {
+      verifyOnly = true
+      staticOnly = true
+      continue
+    }
+    if (argument === '--verify-payload') {
+      const value = argv[++index]
+      if (
+        value === undefined ||
+        value.length === 0 ||
+        value.includes('\0') ||
+        verifyPayload !== null
+      ) {
+        throw new HydrationError(
+          'Cheap LFS --verify-payload needs exactly one local file path.'
+        )
+      }
+      verifyPayload = value
       continue
     }
     if (argument === '--path') {
@@ -540,7 +685,23 @@ function parseArguments(argv) {
     }
     selected.push(argument)
   }
-  return { selected, listOnly }
+  if (listOnly && verifyOnly) {
+    throw new HydrationError(
+      'Cheap LFS --list cannot be combined with verification options.'
+    )
+  }
+  if (verifyPayload !== null && !verifyOnly) {
+    throw new HydrationError(
+      'Cheap LFS --verify-payload must be combined with --verify-only or --static.'
+    )
+  }
+  return {
+    selected,
+    listOnly,
+    verifyOnly,
+    staticOnly,
+    verifyPayload,
+  }
 }
 
 function ghInvocation(argumentsForGh) {
@@ -604,6 +765,11 @@ async function runGhCapture(repositoryRoot, argumentsForGh, maximumBytes) {
   let stdoutBytes = 0
   let stderrBytes = 0
   let overflow = false
+  let timedOut = false
+  const timeout = setTimeout(() => {
+    timedOut = true
+    child.kill()
+  }, MaximumGhDurationMilliseconds)
   child.stdout.on('data', chunk => {
     stdoutBytes += chunk.length
     if (stdoutBytes > maximumBytes) {
@@ -634,7 +800,14 @@ async function runGhCapture(repositoryRoot, argumentsForGh, maximumBytes) {
       )
     }
     throw error
+  }).finally(() => {
+    clearTimeout(timeout)
   })
+  if (timedOut) {
+    throw new HydrationError(
+      'GitHub CLI metadata request exceeded the 30-second verification limit.'
+    )
+  }
   if (overflow) {
     throw new HydrationError('GitHub CLI returned an oversized response.')
   }
@@ -702,9 +875,14 @@ async function getRelease(
         '.'
     )
   }
-  if (!Array.isArray(parsed.assets)) {
+  if (
+    parsed.tag_name !== releaseTag ||
+    parsed.draft !== false ||
+    !Array.isArray(parsed.assets) ||
+    parsed.assets.length > MaximumEntries * 2
+  ) {
     throw new HydrationError(
-      'GitHub Release metadata has no asset inventory for tag ' +
+      'GitHub Release metadata is missing, draft, or unbounded for tag ' +
         releaseTag +
         '.'
     )
@@ -719,6 +897,7 @@ async function findReleaseAsset(
   releaseTag,
   assetName,
   expectedSizeInBytes,
+  expectedStoredSha256,
   cache
 ) {
   const release = await getRelease(
@@ -741,7 +920,9 @@ async function findReleaseAsset(
   if (
     !Number.isSafeInteger(asset.id) ||
     asset.id < 1 ||
-    asset.size !== expectedSizeInBytes
+    asset.size !== expectedSizeInBytes ||
+    asset.state !== 'uploaded' ||
+    asset.digest !== 'sha256:' + expectedStoredSha256
   ) {
     throw new HydrationError(
       'GitHub Release asset metadata does not match the pointer for ' +
@@ -749,7 +930,12 @@ async function findReleaseAsset(
         '.'
     )
   }
-  return asset.id
+  return {
+    id: asset.id,
+    name: asset.name,
+    sizeInBytes: asset.size,
+    sha256: expectedStoredSha256,
+  }
 }
 
 async function downloadReleaseAsset(
@@ -757,7 +943,8 @@ async function downloadReleaseAsset(
   repository,
   assetId,
   destination,
-  expectedSizeInBytes
+  expectedSizeInBytes,
+  expectedStoredSha256
 ) {
   const handle = await open(
     destination,
@@ -783,6 +970,7 @@ async function downloadReleaseAsset(
   const stderr = []
   let stderrBytes = 0
   let transferred = 0
+  const downloadedHash = createHash('sha256')
   let overflow = false
   child.stderr.on('data', chunk => {
     stderrBytes += chunk.length
@@ -811,6 +999,7 @@ async function downloadReleaseAsset(
             'GitHub Release asset exceeded its exact pointer size.'
           )
         }
+        downloadedHash.update(chunk)
         await writeAll(handle, chunk, transferred)
         transferred = nextTransferred
       }
@@ -822,6 +1011,7 @@ async function downloadReleaseAsset(
     if (
       overflow ||
       transferred !== expectedSizeInBytes ||
+      downloadedHash.digest('hex') !== expectedStoredSha256 ||
       outcome.code !== 0 ||
       outcome.signal !== null
     ) {
@@ -927,8 +1117,8 @@ async function assertPointerStillMatches(proof, entry) {
   )
   if (
     !sameIdentity(proof.identity, current.identity) ||
-    !current.bytes.equals(Buffer.from(entry.pointerText, 'utf8')) ||
-    sha256(current.bytes) !== entry.pointerSha256
+    !current.bytes.equals(proof.pointerBytes) ||
+    !pointerBytesMatch(current.bytes, entry)
   ) {
     throw new HydrationError(
       'Cheap LFS pointer changed before materialization: ' + entry.path
@@ -992,7 +1182,8 @@ async function publishVerifiedReplacement(
     )
     if (
       !sameContentIdentity(proof.identity, original.identity) ||
-      !original.bytes.equals(Buffer.from(entry.pointerText, 'utf8'))
+      !original.bytes.equals(proof.pointerBytes) ||
+      !pointerBytesMatch(original.bytes, entry)
     ) {
       throw new HydrationError(
         'Cheap LFS pointer changed at the materialization boundary.'
@@ -1081,14 +1272,18 @@ async function inspectEntry(repositoryRoot, entry) {
       MaximumPointerBytes
     )
     if (
-      candidate.bytes.equals(Buffer.from(entry.pointerText, 'utf8')) &&
-      sha256(candidate.bytes) === entry.pointerSha256
+      pointerBytesMatch(candidate.bytes, entry)
     ) {
       return {
         state: 'pointer',
         absolutePath: location.absolutePath,
         parent: location.parent,
         identity: candidate.identity,
+        pointerBytes: candidate.bytes,
+        pointerSha256: sha256(candidate.bytes),
+        canonicalPointerSha256: sha256(
+          Buffer.from(canonicalPointerText(entry.pointerText), 'utf8')
+        ),
       }
     }
   }
@@ -1108,6 +1303,33 @@ async function inspectEntry(repositoryRoot, entry) {
   throw new HydrationError(
     'Cheap LFS left a modified or stale tracked file untouched: ' + entry.path
   )
+}
+
+async function verifyExternalPayload(input, entry) {
+  const absolutePath = resolve(input)
+  const visible = await lstat(absolutePath, { bigint: true }).catch(() => null)
+  if (
+    visible === null ||
+    visible.isSymbolicLink() ||
+    !visible.isFile() ||
+    visible.nlink !== 1n ||
+    visible.size !== BigInt(entry.sizeInBytes)
+  ) {
+    throw new HydrationError(
+      'Cheap LFS external payload is missing, linked, or has the wrong size.'
+    )
+  }
+  const digest = await hashRegularFile(absolutePath, entry.sizeInBytes)
+  if (digest !== entry.sha256) {
+    throw new HydrationError(
+      'Cheap LFS external payload failed exact SHA-256 verification.'
+    )
+  }
+  return {
+    path: absolutePath,
+    sizeInBytes: entry.sizeInBytes,
+    sha256: digest,
+  }
 }
 
 function unsupportedProviderMessage(entry) {
@@ -1170,12 +1392,13 @@ async function materializeReleaseEntry(
     let outputOffset = 0
     for (let index = 0; index < entry.source.parts.length; index++) {
       const part = entry.source.parts[index]
-      const assetId = await findReleaseAsset(
+      const asset = await findReleaseAsset(
         repositoryRoot,
         repository,
         entry.source.releaseTag,
         part.assetName,
         part.storedSizeInBytes,
+        part.storedSha256,
         releaseCache
       )
       const downloadedName = 'download-' + index
@@ -1184,9 +1407,10 @@ async function materializeReleaseEntry(
       await downloadReleaseAsset(
         repositoryRoot,
         repository,
-        assetId,
+        asset.id,
         downloadedPath,
-        part.storedSizeInBytes
+        part.storedSizeInBytes,
+        part.storedSha256
       )
       outputOffset += await appendVerifiedPart(
         downloadedPath,
@@ -1256,24 +1480,67 @@ async function loadInventory(repositoryRoot) {
     repositoryRoot
   )
   const inventoryPath = join(helperDirectory, 'hydrate-inventory.json')
+  const cloneInventoryPath = join(helperDirectory, 'inventory.json')
   const inventory = await readRegularFileBounded(
     inventoryPath,
     MaximumInventoryBytes
   )
+  const cloneInventory = await readRegularFileBounded(
+    cloneInventoryPath,
+    MaximumInventoryBytes
+  )
   let parsed
+  let parsedClone
   try {
     parsed = JSON.parse(inventory.bytes.toString('utf8'))
   } catch {
     throw new HydrationError('Cheap LFS inventory is not valid JSON.')
   }
-  return validateInventory(parsed)
+  try {
+    parsedClone = JSON.parse(cloneInventory.bytes.toString('utf8'))
+  } catch {
+    throw new HydrationError('Cheap LFS clone inventory is not valid JSON.')
+  }
+  const entries = validateInventory(parsed)
+  const cloneAssets = validateCloneInventory(parsedClone, entries)
+  return { entries, cloneAssets }
+}
+
+async function verifyReleaseMetadata(repositoryRoot, entries) {
+  const repository = await resolveGithubRepository(repositoryRoot)
+  const releaseCache = new Map()
+  const verifiedAssets = []
+  for (const entry of entries) {
+    if (entry.source.provider !== 'github-release') {
+      throw new HydrationError(unsupportedProviderMessage(entry))
+    }
+    for (const part of entry.source.parts) {
+      const asset = await findReleaseAsset(
+        repositoryRoot,
+        repository,
+        entry.source.releaseTag,
+        part.assetName,
+        part.storedSizeInBytes,
+        part.storedSha256,
+        releaseCache
+      )
+      verifiedAssets.push({
+        releaseTag: entry.source.releaseTag,
+        name: asset.name,
+        sizeInBytes: asset.sizeInBytes,
+        sha256: asset.sha256,
+      })
+    }
+  }
+  return { repository, verifiedAssets }
 }
 
 async function main() {
   const scriptDirectory = dirname(fileURLToPath(import.meta.url))
   const requestedRoot = resolve(scriptDirectory, '..', '..')
   const repositoryRoot = await requireCanonicalDirectory(requestedRoot)
-  const entries = await loadInventory(repositoryRoot)
+  const loaded = await loadInventory(repositoryRoot)
+  const entries = loaded.entries
   const options = parseArguments(process.argv.slice(2))
   if (options.listOnly) {
     for (const entry of entries) {
@@ -1314,6 +1581,47 @@ async function main() {
     if (state.state === 'hydrated') {
       alreadyHydrated.push(entry.path)
     }
+  }
+  if (options.verifyOnly) {
+    if (options.verifyPayload !== null && unique.length !== 1) {
+      throw new HydrationError(
+        'Cheap LFS external payload verification requires exactly one selected entry.'
+      )
+    }
+    const payloadProof =
+      options.verifyPayload === null
+        ? null
+        : await verifyExternalPayload(options.verifyPayload, unique[0])
+    const releaseProof = options.staticOnly
+      ? { repository: null, verifiedAssets: [] }
+      : await verifyReleaseMetadata(repositoryRoot, unique)
+    console.log(
+      JSON.stringify({
+        status: 'verified',
+        mode: options.staticOnly ? 'static' : 'release-metadata',
+        downloadedBytes: 0,
+        checked: unique.map(entry => {
+          const state = inspected.get(entry.path)
+          return {
+            path: entry.path,
+            state: state.state,
+            sizeInBytes: entry.sizeInBytes,
+            sha256: entry.sha256,
+            inventoryPointerSha256: entry.pointerSha256,
+            checkedOutPointerSha256:
+              state.state === 'pointer' ? state.pointerSha256 : null,
+            canonicalPointerSha256:
+              state.state === 'pointer'
+                ? state.canonicalPointerSha256
+                : entry.pointerSha256,
+          }
+        }),
+        repository: releaseProof.repository,
+        releaseAssets: releaseProof.verifiedAssets,
+        payloadProof,
+      })
+    )
+    return
   }
   const pending = unique.filter(
     entry => inspected.get(entry.path).state === 'pointer'
@@ -1356,9 +1664,24 @@ async function main() {
   )
 }
 
-await main().catch(error => {
-  const message =
-    error instanceof Error ? error.message : 'Unknown Cheap LFS helper failure.'
-  console.error('Cheap LFS hydration stopped: ' + message)
-  process.exitCode = 1
-})
+export {
+  calculatePointerSetSha256,
+  canonicalPointerText,
+  normalizeCheckedOutPointerText,
+  validateCloneInventory,
+  validateInventory,
+}
+
+if (
+  process.argv[1] !== undefined &&
+  samePath(fileURLToPath(import.meta.url), process.argv[1])
+) {
+  await main().catch(error => {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown Cheap LFS helper failure.'
+    console.error('Cheap LFS hydration stopped: ' + message)
+    process.exitCode = 1
+  })
+}
