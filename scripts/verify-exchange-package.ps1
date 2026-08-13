@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string]$SourceCommit,
+    [string]$ExpectedVersion,
     [string]$OutputRoot = 'Windows-Server-Tools\Exchange-Auto-Installer\dist',
     [string]$JsonOutputPath
 )
@@ -17,10 +18,15 @@ if ($SourceCommit -notmatch '^[0-9a-f]{40}$') { throw "SourceCommit is not an ex
 if (-not (Test-Path -LiteralPath $squirrelRoot -PathType Container)) { throw "Squirrel.Windows output is missing: $squirrelRoot" }
 if (-not (Test-Path -LiteralPath $unpackedRoot -PathType Container)) { throw "Unpacked application output is missing: $unpackedRoot" }
 
-$recordedCommit = (Get-Content -LiteralPath (Join-Path $distRoot 'source-commit.txt') -Raw).Trim()
+$commitEvidencePath = Join-Path $distRoot 'source-commit.txt'
+$versionEvidencePath = Join-Path $distRoot 'package-version.txt'
+if (-not (Test-Path -LiteralPath $commitEvidencePath -PathType Leaf)) { throw 'Exchange package source-commit evidence is missing.' }
+if (-not (Test-Path -LiteralPath $versionEvidencePath -PathType Leaf)) { throw 'Exchange package version evidence is missing.' }
+$recordedCommit = (Get-Content -LiteralPath $commitEvidencePath -Raw).Trim()
 if ($recordedCommit -cne $SourceCommit) { throw "Exchange package provenance $recordedCommit does not match $SourceCommit." }
-$version = (Get-Content -LiteralPath (Join-Path $distRoot 'package-version.txt') -Raw).Trim()
+$version = (Get-Content -LiteralPath $versionEvidencePath -Raw).Trim()
 if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw "Recorded Exchange package version is invalid: $version" }
+if ($ExpectedVersion -and $version -cne $ExpectedVersion) { throw "Recorded Exchange package version $version does not match expected shared version $ExpectedVersion." }
 
 $setups = @(Get-ChildItem -LiteralPath $squirrelRoot -File | Where-Object { $_.Name -like '*-Setup.exe' })
 $fullPackages = @(Get-ChildItem -LiteralPath $squirrelRoot -File | Where-Object { $_.Name -like '*-full.nupkg' })

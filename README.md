@@ -34,7 +34,7 @@ From a Windows command prompt or PowerShell session:
 
 `build.bat` bootstraps the required Microsoft build tools, pinned .NET Framework 4.7.2 reference assemblies, Node.js version from `.node-version`, NuGet packages, and the exact Exchange npm lockfile. It then builds and validates both runnable applications.
 
-`build-installer.bat` reuses or rebuilds the commit-exact WPF application, creates the unsigned Inno Setup installer, packages the Exchange application through an isolated task-owned copy with Squirrel.Windows, and validates setup executables, `RELEASES`, full/delta packages, provenance, hashes, and unsigned state. It never publishes, creates a tag, or creates a release.
+`build-installer.bat` reuses or rebuilds the commit-exact WPF application, creates the unsigned Inno Setup installer, packages the Exchange application through an isolated task-owned copy with Squirrel.Windows, and validates setup executables, `RELEASES`, full/delta packages, provenance, hashes, shared package version, and unsigned state. In Actions, both installer families carry the unique `1.<run-number>.<run-attempt>` version. A local build uses the committed Exchange package version for both families. The script never publishes, creates a tag, or creates a release.
 
 Without `/s` (or `--silent` or `SILENT=1`), `build.bat` offers to launch the primary WPF application after a successful build. Silent mode never prompts or opens a window.
 

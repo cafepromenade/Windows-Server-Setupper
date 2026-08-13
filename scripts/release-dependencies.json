@@ -29,9 +29,9 @@
         },
         {
           "name": "Microsoft Build Tools",
-          "constraint": "Visual Studio 2022 MSBuild with the .NET Framework desktop build workload",
-          "source": "Microsoft.VisualStudio.2022.BuildTools from the canonical winget source when absent",
-          "bootstrap": "build.bat discovers MSBuild with vswhere and installs the exact canonical winget package non-interactively when missing"
+          "constraint": "A compatible Visual Studio 2022 MSBuild, otherwise pinned Microsoft Build Tools 17.14.37 with managed desktop and .NET Framework 4.7.2 components",
+          "source": "Microsoft.VisualStudio.2022.BuildTools 17.14.37 from the canonical winget source, with the exact official download.visualstudio.microsoft.com bootstrapper as a SHA-256-verified fallback",
+          "bootstrap": "build.bat discovers MSBuild with vswhere; scripts/ensure-msbuild.ps1 then tries pinned winget and the official bootstrapper with SHA-256 e0b8ea16494b4a79c68da26773131562aefecc8d87f1923c24d579c7a72e0575 into a user-owned toolchain path"
         },
         {
           "name": ".NET Framework reference assemblies",
@@ -59,9 +59,9 @@
         },
         {
           "name": "Inno Setup",
-          "constraint": "Inno Setup 6",
-          "source": "JRSoftware.InnoSetup from the canonical winget source",
-          "bootstrap": "build-installer.bat discovers ISCC.exe and installs the canonical package non-interactively when missing"
+          "constraint": "An installed compatible Inno Setup 6 compiler, otherwise pinned Inno Setup 6.7.3",
+          "source": "JRSoftware.InnoSetup 6.7.3 from the canonical winget source, with the official jrsoftware/issrc GitHub release installer as a SHA-256-verified user-scoped fallback",
+          "bootstrap": "scripts/ensure-inno.ps1 discovers a compatible ISCC.exe, then tries pinned winget and finally downloads the official 6.7.3 installer with SHA-256 9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732 into a user-owned toolchain path"
         },
         {
           "name": "Squirrel.Windows packager",
@@ -84,7 +84,8 @@
         "line-count.json",
         "release-dependencies.json",
         "run-context.json"
-      ]
+      ],
+      "versionContract": "WST_RELEASE_VERSION is a unique numeric major.minor.patch value derived from the Actions run number and attempt. The same value is embedded into the Inno Setup installer and the isolated Squirrel.Windows package, recorded in provenance, and checked again during release assembly."
     }
   ]
 }

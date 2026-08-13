@@ -10,15 +10,15 @@ The machine-readable hand-written inventory is [`scripts/release-dependencies.js
 
 ## Toolchain sources
 
-- Microsoft Build Tools: Visual Studio 2022 discovery, then the canonical `Microsoft.VisualStudio.2022.BuildTools` winget package.
+- Microsoft Build Tools: compatible Visual Studio 2022 discovery, pinned `Microsoft.VisualStudio.2022.BuildTools` 17.14.37 through winget, or the exact official Microsoft bootstrapper downloaded to a user-owned toolchain path and verified against committed SHA-256 `e0b8ea16494b4a79c68da26773131562aefecc8d87f1923c24d579c7a72e0575`.
 - .NET Framework 4.7.2 reference assemblies: pinned `Microsoft.NETFramework.ReferenceAssemblies.net472` 1.0.3 from NuGet.org with SHA-512 verified against registration metadata.
 - Node.js: exact version from `.node-version`, using an existing exact runtime or the official `nodejs.org` archive verified against `SHASUMS256.txt` and installed in a per-user cache.
 - Exchange dependencies: exact `package-lock.json` through `npm ci`.
-- Inno Setup: discovered Inno Setup 6 or the canonical `JRSoftware.InnoSetup` winget package.
+- Inno Setup: a compatible discovered Inno Setup 6 compiler, pinned `JRSoftware.InnoSetup` 6.7.3 through winget, or the official `jrsoftware/issrc` 6.7.3 installer downloaded to a user-owned toolchain path and verified against committed SHA-256 `9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732`.
 - Squirrel.Windows: `electron-builder-squirrel-windows` 26.15.3 from the Exchange lockfile.
 - Git, GitHub CLI, and PowerShell: declared capabilities of the pinned GitHub-hosted runner image, checked before build or publication work.
 
-No bootstrap path installs a signing certificate, changes the user's persistent PowerShell execution policy, commits dependency directories, or mutates an unrelated global toolchain. Node and the reference assemblies use user-owned caches. Build Tools and Inno Setup stop with exact attempted-source evidence when their canonical installer route is unavailable.
+No bootstrap path installs a signing certificate, changes the user's persistent PowerShell execution policy, commits dependency directories, or mutates an unrelated global toolchain. Node, reference assemblies, and the Inno fallback use user-owned caches. Build Tools and Inno Setup stop with exact attempted-source evidence when every canonical installer route is unavailable.
 
 ## Local validation
 

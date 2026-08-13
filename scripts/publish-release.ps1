@@ -32,13 +32,17 @@ if ($LASTEXITCODE -eq 0) { throw "Git tag already exists: $tag" }
 $dimSum = Get-Content -LiteralPath (Join-Path $stagingRoot 'dim-sum.json') -Raw | ConvertFrom-Json
 $lineCount = Get-Content -LiteralPath (Join-Path $stagingRoot 'line-count.md') -Raw
 $manifest = Get-Content -LiteralPath (Join-Path $stagingRoot 'artifact-manifest.json') -Raw | ConvertFrom-Json
+$packageVersion = [string]$manifest.packageVersion
+if ($packageVersion -notmatch '^\d+\.\d+\.\d+$' -or $packageVersion -cne [string]$env:WST_RELEASE_VERSION) {
+    throw "Release manifest package version '$packageVersion' does not match WST_RELEASE_VERSION '$env:WST_RELEASE_VERSION'."
+}
 if ($dimSum.available) { $releaseName += " · $($dimSum.codeName)" }
 
 function New-ReleaseNotes([string]$CompletedAt, [string]$Duration) {
     $builder = [Text.StringBuilder]::new()
     [void]$builder.AppendLine("# $releaseName")
     [void]$builder.AppendLine()
-    [void]$builder.AppendLine("Windows-only unsigned release for commit ``$commit``.")
+    [void]$builder.AppendLine("Windows-only unsigned release version ``$packageVersion`` for commit ``$commit``.")
     [void]$builder.AppendLine()
     [void]$builder.AppendLine('> [!WARNING]')
     [void]$builder.AppendLine('> The installers are intentionally unsigned and may trigger Windows unknown-publisher or SmartScreen warnings. No code-signing certificate or signing service was used.')
@@ -94,7 +98,7 @@ $initialNotes = New-ReleaseNotes -CompletedAt 'Pending server publication timest
 $assets = @(Get-ChildItem -LiteralPath $stagingRoot -File | Where-Object { $_.Name -ne 'release-notes-initial.md' } | Sort-Object Name | ForEach-Object { $_.FullName })
 if ($assets.Count -eq 0) { throw 'No release assets were staged.' }
 
-& gh release create $tag --repo $Repository --target $commit --title $releaseName --notes-file $initialNotesPath @assets
+& gh release create $tag --repo $Repository --target $commit --title $releaseName --notes-file $initialNotesPath --draft=false --prerelease=false @assets
 if ($LASTEXITCODE -ne 0) { throw "gh release create failed for $tag." }
 
 $published = & gh api "repos/$Repository/releases/tags/$tag" | ConvertFrom-Json
@@ -133,6 +137,24 @@ finally {
 $verified = & gh api "repos/$Repository/releases/tags/$tag" | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or $verified.draft -or $verified.prerelease -or $verified.assets.Count -ne $assets.Count) {
     throw "Final release verification failed for $tag."
+}
+if ([string]$verified.tag_name -cne $tag -or [string]$verified.name -cne $releaseName -or [string]$verified.target_commitish -cne $commit) {
+    throw "Final release identity does not match tag $tag, title '$releaseName', and commit $commit."
+}
+$expectedBody = (Get-Content -LiteralPath $finalNotesPath -Raw) -replace "`r`n", "`n"
+$actualBody = ([string]$verified.body) -replace "`r`n", "`n"
+if ($actualBody -cne $expectedBody) { throw "Final release notes do not match the verified timing body for $tag." }
+foreach ($asset in $assets) {
+    $local = Get-Item -LiteralPath $asset
+    $matches = @($verified.assets | Where-Object { [string]$_.name -ceq $local.Name })
+    if ($matches.Count -ne 1) { throw "Final release asset identity is missing or duplicated: $($local.Name)" }
+    if ([int64]$matches[0].size -ne $local.Length -or [string]$matches[0].state -cne 'uploaded') {
+        throw "Final release asset size/state mismatch: $($local.Name)"
+    }
+    $downloadUri = [Uri]([string]$matches[0].browser_download_url)
+    if ($downloadUri.Scheme -cne 'https' -or $downloadUri.Host -cne 'github.com') {
+        throw "Final release asset has an unexpected download URL: $($local.Name)"
+    }
 }
 Write-Output "Published and verified one non-draft release: $($verified.html_url)"
 Write-Output "Tag: $tag"
