@@ -155,11 +155,13 @@ if %INSTALLER_SIZE% LSS 102400 (
     popd >nul
     exit /b 1
 )
-for /f "usebackq delims=" %%S in (`powershell.exe -NoProfile -Command "(Get-AuthenticodeSignature -LiteralPath '%INSTALLER%').Status"`) do set "SIGNATURE_STATUS=%%S"
-if /i not "%SIGNATURE_STATUS%"=="NotSigned" (
-    echo ERROR: Expected an unsigned installer, but signature status is "%SIGNATURE_STATUS%".
+set "WST_SIGNATURE_TARGET=%INSTALLER%"
+powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $stream=[IO.File]::Open($env:WST_SIGNATURE_TARGET,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read); $reader=New-Object IO.BinaryReader($stream); try { if ($stream.Length -lt 64) { throw 'The installer is too short to be a valid PE file.'; } if ($reader.ReadUInt16() -ne 0x5A4D) { throw 'The installer does not have an MZ header.'; } $stream.Position=0x3C; $peOffset=$reader.ReadUInt32(); if ($peOffset -gt ($stream.Length-24)) { throw 'The PE header offset is outside the installer.'; } $stream.Position=$peOffset; if ($reader.ReadUInt32() -ne 0x00004550) { throw 'The installer does not have a PE signature.'; } [void]$reader.ReadUInt16(); [void]$reader.ReadUInt16(); [void]$reader.ReadUInt32(); [void]$reader.ReadUInt32(); [void]$reader.ReadUInt32(); $optionalSize=$reader.ReadUInt16(); [void]$reader.ReadUInt16(); $optionalStart=$stream.Position; if ($optionalSize -lt 2 -or ($optionalStart+$optionalSize) -gt $stream.Length) { throw 'The PE optional header is invalid.'; } $magic=$reader.ReadUInt16(); if ($magic -eq 0x10B) { $directoryCountOffset=92; $directoryTableOffset=96; } elseif ($magic -eq 0x20B) { $directoryCountOffset=108; $directoryTableOffset=112; } else { throw 'The PE optional-header format is unsupported.'; } if ($optionalSize -lt ($directoryTableOffset+40)) { throw 'The PE optional header does not contain a complete security-directory entry.'; } $stream.Position=$optionalStart+$directoryCountOffset; $directoryCount=$reader.ReadUInt32(); if ($directoryCount -le 4) { 'NotSigned'; exit 0; } $stream.Position=$optionalStart+$directoryTableOffset+32; $certificateOffset=$reader.ReadUInt32(); $certificateSize=$reader.ReadUInt32(); if (($certificateOffset -eq 0) -and ($certificateSize -eq 0)) { 'NotSigned'; exit 0; } if (($certificateOffset -eq 0) -or ($certificateSize -eq 0)) { throw 'The PE security-directory entry is inconsistent.'; } if (($certificateOffset+[uint64]$certificateSize) -gt [uint64]$stream.Length) { throw 'The PE certificate table extends beyond the installer.'; } throw ('The installer contains a PE certificate table at offset '+$certificateOffset+' with size '+$certificateSize+'.'); } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1; } finally { $reader.Dispose(); $stream.Dispose(); }"
+set "SIGNATURE_CHECK_EXIT=!ERRORLEVEL!"
+if not "!SIGNATURE_CHECK_EXIT!"=="0" (
+    echo ERROR: The installer is signed or its PE certificate table could not be validated safely.
     popd >nul
-    exit /b 1
+    exit /b !SIGNATURE_CHECK_EXIT!
 )
 
 echo [6/6] Calculating SHA-256...
@@ -176,7 +178,7 @@ echo Source commit: %SOURCE_COMMIT%
 echo Installer: "%INSTALLER%"
 echo Size: %INSTALLER_SIZE% bytes
 echo SHA-256: %INSTALLER_SHA256%
-echo Signature status: UNSIGNED ^(NotSigned^)
+echo Signature status: UNSIGNED ^(PE certificate table absent^)
 echo This project intentionally does not code-sign release artifacts.
 
 popd >nul
