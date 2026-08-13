@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Exchange Auto Installer logo</title>
+  <desc id="description">A blue server enclosure surrounding a white envelope and cyan installation arrow.</desc>
+  <rect width="512" height="512" rx="112" fill="#112a46"/>
+  <rect x="70" y="86" width="372" height="340" rx="72" fill="#1f5f91" stroke="#72d7ff" stroke-width="24"/>
+  <path d="M132 170h248v172H132z" fill="#f8fbff"/>
+  <path d="m132 170 124 94 124-94" fill="none" stroke="#112a46" stroke-linecap="round" stroke-linejoin="round" stroke-width="26"/>
+  <path d="M256 122v126m-52-52 52 52 52-52" fill="none" stroke="#72d7ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="30"/>
+  <circle cx="118" cy="386" r="13" fill="#72d7ff"/>
+  <circle cx="160" cy="386" r="13" fill="#72d7ff"/>
+</svg>
