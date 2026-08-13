@@ -11,6 +11,8 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Windows_Server_Tools;
 
 namespace Windows_Server_Tools.Tests
@@ -111,6 +113,7 @@ namespace Windows_Server_Tools.Tests
             ChecksWpfDependencyContracts();
             ChecksWpfLogoContracts();
             await ChecksAutomaticUpdateContracts();
+            ChecksCustomLogoContracts();
         }
 
         private static async Task RetriesOnlyExplicitlyIdempotentWork()
@@ -1975,6 +1978,140 @@ namespace Windows_Server_Tools.Tests
                 {
                     Directory.Delete(testDirectory, true);
                 }
+            }
+        }
+
+        private static void ChecksCustomLogoContracts()
+        {
+            string directory = NewTemporaryDirectory();
+            var service = new LogoService(directory, protectedStorage: false);
+            byte[] source = CreateLogoFixturePng(96, 48);
+            try
+            {
+                LogoSettings custom = service.ImportCustom(
+                    source,
+                    "contain",
+                    "transparent",
+                    0.5,
+                    0.5);
+                Check(custom.Preset == "custom"
+                    && custom.Fit == "contain"
+                    && custom.DisplaySha256.Length == 64,
+                    "a valid local image should produce bounded custom-logo settings and a cache identity");
+                Check(File.Exists(Path.Combine(directory, "custom-logo-source.bin"))
+                    && File.Exists(Path.Combine(directory, "custom-logo-256.png"))
+                    && File.Exists(Path.Combine(directory, "custom-logo-48.png")),
+                    "custom-logo conversion should retain a private source and both required display sizes");
+                BitmapSource display = service.LoadCustomDisplay(custom);
+                Check(display != null && display.PixelWidth == 48 && display.PixelHeight == 48,
+                    "the consumed custom-logo cache should decode back to exactly 48 by 48 pixels");
+
+                LogoSettings filled = service.UpdateCustomRendering("fill", "#FF112233", 0, 1);
+                Check(filled.Fit == "fill"
+                    && filled.Background == "#FF112233"
+                    && filled.FocalX == 0
+                    && filled.FocalY == 1,
+                    "fit, background, and numeric focal-point choices should persist exactly");
+                LogoSettings reloaded = new LogoService(directory, false).LoadSettings();
+                Check(reloaded.Preset == "custom"
+                    && reloaded.DisplaySha256 == filled.DisplaySha256,
+                    "custom-logo selection and validated cache identity should survive restart");
+
+                string settingsJson = File.ReadAllText(Path.Combine(directory, "logo-settings.json"));
+                Check(!settingsJson.Contains(directory)
+                    && !settingsJson.Contains("sourcePath")
+                    && !settingsJson.Contains("http://")
+                    && !settingsJson.Contains("https://"),
+                    "custom-logo state should store no source path or network location");
+
+                bool signatureRejected = false;
+                try
+                {
+                    service.ImportCustom(
+                        Encoding.UTF8.GetBytes("not an image"),
+                        "contain",
+                        "transparent",
+                        0.5,
+                        0.5);
+                }
+                catch (InvalidDataException)
+                {
+                    signatureRejected = true;
+                }
+                Check(signatureRejected,
+                    "custom-logo type detection should reject an extension-independent signature mismatch");
+
+                bool oversizedRejected = false;
+                try
+                {
+                    LogoService.DecodeBoundedSource(new byte[LogoService.MaximumSourceBytes + 1]);
+                }
+                catch (InvalidDataException)
+                {
+                    oversizedRejected = true;
+                }
+                Check(oversizedRejected, "custom-logo input should enforce the 5 MiB byte limit");
+
+                File.AppendAllText(Path.Combine(directory, "custom-logo-48.png"), "corrupt");
+                Check(service.LoadSettings().Preset == "master",
+                    "a corrupt custom-logo cache should fail closed to the shipped mark");
+                service.Reset();
+                Check(service.LoadSettings().Preset == "master"
+                    && !Directory.GetFiles(directory, "custom-logo-*").Any(),
+                    "reset should purge the private custom source and every derived cache file");
+
+                LogoSettings icon = service.ApplyPreset("icon");
+                Check(icon.Preset == "icon" && service.LoadSettings().Preset == "icon",
+                    "the compact shipped application icon preset should persist without custom cache data");
+
+                string repositoryRoot = FindRepositoryRoot();
+                string project = Path.Combine(repositoryRoot, "Windows-Server-Tools", "Windows-Server-Tools");
+                string mainXaml = File.ReadAllText(Path.Combine(project, "MainWindow.xaml"));
+                string commonXaml = File.ReadAllText(Path.Combine(project, "CommonlyInstalledWindowsComponents.xaml"));
+                string logoSource = File.ReadAllText(Path.Combine(project, "MainWindow.Logo.cs"));
+                Check(mainXaml.Contains("LogoPresetComboBox")
+                    && mainXaml.Contains("Choose local image")
+                    && mainXaml.Contains("LogoFocalXSlider")
+                    && mainXaml.Contains("LogoBackgroundTextBox")
+                    && mainXaml.Contains("Reset to shipped logo"),
+                    "the native logo surface should expose presets, upload, focal point, background, and reset controls");
+                Check(mainXaml.Contains("x:Name=\"AppLogoImage\"")
+                    && commonXaml.Contains("x:Name=\"AppLogoImage\""),
+                    "both WPF windows should render the active local application logo");
+                Check(logoSource.Contains("ReadBoundedLocalLogo")
+                    && logoSource.Contains("The source path was not stored")
+                    && !logoSource.Contains("HttpClient"),
+                    "the custom-logo UI should read a bounded local file without a network route or stored path");
+            }
+            finally
+            {
+                service.Reset();
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, true);
+                }
+            }
+        }
+
+        private static byte[] CreateLogoFixturePng(int width, int height)
+        {
+            var bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+            int stride = width * 4;
+            byte[] pixels = new byte[stride * height];
+            for (int index = 0; index < pixels.Length; index += 4)
+            {
+                pixels[index] = 0xe8;
+                pixels[index + 1] = 0xd8;
+                pixels[index + 2] = 0x00;
+                pixels[index + 3] = 0xff;
+            }
+            bitmap.WritePixels(new System.Windows.Int32Rect(0, 0, width, height), pixels, stride, 0);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var output = new MemoryStream())
+            {
+                encoder.Save(output);
+                return output.ToArray();
             }
         }
 

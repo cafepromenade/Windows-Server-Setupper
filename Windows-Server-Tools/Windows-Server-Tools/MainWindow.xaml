@@ -23,7 +23,8 @@
                 <Border Padding="16" Margin="0,0,0,12" Background="#FFE8DEF8" CornerRadius="16">
                     <StackPanel>
                         <DockPanel LastChildFill="True">
-                            <Image Source="Assets/windows-server-setupper-logo-master.png"
+                            <Image x:Name="AppLogoImage"
+                                   Source="Assets/windows-server-setupper-logo-master.png"
                                    Width="48"
                                    Height="48"
                                    Margin="0,0,12,0"
@@ -58,6 +59,91 @@
                         </WrapPanel>
                     </StackPanel>
                 </Border>
+
+                <GroupBox Header="Appearance and application logo" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <DockPanel LastChildFill="True">
+                            <Image x:Name="LogoPreviewImage"
+                                   DockPanel.Dock="Left"
+                                   Width="64"
+                                   Height="64"
+                                   Margin="0,0,12,0"
+                                   Stretch="Uniform"
+                                   AutomationProperties.Name="Current application logo preview"/>
+                            <StackPanel>
+                                <TextBlock Text="Application logo preset" TextWrapping="Wrap"/>
+                                <ComboBox x:Name="LogoPresetComboBox"
+                                          MinHeight="44"
+                                          Margin="0,4,0,8"
+                                          AutomationProperties.Name="Application logo preset"
+                                          SelectionChanged="LogoPresetComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="Server and mail mark" Tag="master"/>
+                                    <ComboBoxItem Content="Compact application icon" Tag="icon"/>
+                                    <ComboBoxItem Content="Local custom image" Tag="custom"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock Text="Custom images are processed only on this computer. Choose PNG, JPEG, or BMP up to 5 MiB, 4096 pixels per side, 16 megapixels, and one frame. The app stores private validated cache files, never the source path." TextWrapping="Wrap"/>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="ChooseCustomLogoButton"
+                                    Content="Choose local image…"
+                                    MinHeight="44"
+                                    Padding="12,6"
+                                    Margin="0,0,8,8"
+                                    AutomationProperties.Name="Choose a local custom application logo image"
+                                    Click="ChooseCustomLogoButton_Click"/>
+                            <Button x:Name="ResetLogoButton"
+                                    Content="Reset to shipped logo"
+                                    MinHeight="44"
+                                    Padding="12,6"
+                                    Margin="0,0,8,8"
+                                    Click="ResetLogoButton_Click"/>
+                        </WrapPanel>
+                        <TextBlock Text="Fit behavior" TextWrapping="Wrap"/>
+                        <ComboBox x:Name="LogoFitComboBox"
+                                  MinHeight="44"
+                                  Margin="0,4,0,8"
+                                  AutomationProperties.Name="Custom logo fit behavior">
+                            <ComboBoxItem Content="Contain — show the complete image" Tag="contain" IsSelected="True"/>
+                            <ComboBoxItem Content="Fill — crop to the square using the focal point" Tag="fill"/>
+                        </ComboBox>
+                        <TextBlock Text="Background: transparent or #AARRGGBB" TextWrapping="Wrap"/>
+                        <TextBox x:Name="LogoBackgroundTextBox"
+                                 Text="transparent"
+                                 MinHeight="40"
+                                 Margin="0,4,0,8"
+                                 AutomationProperties.Name="Custom logo background color"/>
+                        <TextBlock Text="Horizontal focal point (0 left, 100 right)" TextWrapping="Wrap"/>
+                        <Slider x:Name="LogoFocalXSlider"
+                                Minimum="0"
+                                Maximum="100"
+                                Value="50"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                MinHeight="44"
+                                AutomationProperties.Name="Custom logo horizontal focal point"/>
+                        <TextBlock Text="Vertical focal point (0 top, 100 bottom)" TextWrapping="Wrap"/>
+                        <Slider x:Name="LogoFocalYSlider"
+                                Minimum="0"
+                                Maximum="100"
+                                Value="50"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                MinHeight="44"
+                                AutomationProperties.Name="Custom logo vertical focal point"/>
+                        <Button x:Name="ApplyLogoRenderingButton"
+                                Content="Apply custom rendering"
+                                MinHeight="44"
+                                Padding="12,6"
+                                Margin="0,8,0,0"
+                                Click="ApplyLogoRenderingButton_Click"/>
+                        <TextBlock x:Name="LogoStatusText"
+                                   Margin="0,8,0,0"
+                                   Text="The shipped server-and-mail logo is active."
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"/>
+                    </StackPanel>
+                </GroupBox>
 
                 <GroupBox Header="Active Directory and network" Padding="12" Margin="0,0,0,12">
                     <StackPanel>
