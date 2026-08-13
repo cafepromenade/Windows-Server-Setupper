@@ -1,0 +1,280 @@
+{
+  "version": "site-contract-v1",
+  "features": [
+    {
+      "id": "material-3",
+      "name": "Material 3 design system",
+      "status": "implemented",
+      "implementation": "app/globals.css: color roles, type, shape, elevation, motion, density and responsive layout",
+      "article": "content/guides/material-appearance-and-logo.md",
+      "localized": "app/site-shell.tsx: authored English, Cantonese and bilingual presentation",
+      "test": "tests/feature-inventory.test.mjs and tests/rendered-html.test.mjs",
+      "interaction": "Theme, accent and density controls update the live shell",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "responsive-accessibility",
+      "name": "Responsive and accessible layout",
+      "status": "implemented",
+      "implementation": "app/globals.css: 980, 760 and 420 pixel breakpoints, focus, reduced motion and touch sizes",
+      "article": "content/guides/accessibility-and-responsive-use.md",
+      "localized": "app/site-shell.tsx: accessible labels remain factual in every language mode",
+      "test": "tests/feature-inventory.test.mjs and server-rendered landmark assertions",
+      "interaction": "Skip link, tablist, overlays, keyboard shortcut and visible focus",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "tabs",
+      "name": "Dockable grouped tabs",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: tab strip, groups, pinning, locking and four discovery searches",
+      "article": "content/guides/navigation-search-and-command-palette.md",
+      "localized": "All visible tab labels have English and Cantonese sources",
+      "test": "tests/feature-inventory.test.mjs: required tab and search identifiers",
+      "interaction": "Left, right, top and bottom docking; compact phone strip",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "regex-builder",
+      "name": "Anchored regular expression builders",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: SearchField component with bounded ECMAScript builder",
+      "article": "content/guides/navigation-search-and-command-palette.md",
+      "localized": "Builder facts use neutral authored copy in every mode",
+      "test": "tests/feature-inventory.test.mjs: every named search field and builder contract",
+      "interaction": "Pattern, flags, sample, live validation and plain-text default",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "language-modes",
+      "name": "Three language modes and two funny levels",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: persisted language and independent English/Cantonese controls",
+      "article": "content/guides/language-school-mode-and-narration.md",
+      "localized": "English, playful Hong Kong Cantonese and bilingual UI sources",
+      "test": "tests/feature-inventory.test.mjs: language and funny-level control identifiers",
+      "interaction": "Live language selection and independent sliders",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "dialog-emoji",
+      "name": "Dialog emoji toggle",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: persisted decoration toggle with unchanged action labels",
+      "article": "content/guides/language-school-mode-and-narration.md",
+      "localized": "Setting explanation and factual dialogs follow active language mode",
+      "test": "tests/feature-inventory.test.mjs: showDialogEmoji contract",
+      "interaction": "Toggle changes dialog and notification decoration only",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "school-mode",
+      "name": "Renameable School mode",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: local mode name, English force and feature suppression",
+      "article": "content/guides/language-school-mode-and-narration.md",
+      "localized": "Chosen mode name replaces shipped label in the setting",
+      "test": "tests/feature-inventory.test.mjs: mode fields and suppression boundary",
+      "interaction": "Live toggle and resettable device-local name",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "personal-vocabulary",
+      "name": "Personal vocabulary JSON upload",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: 64 KiB versioned bounded local validator and reset",
+      "article": "content/guides/privacy-local-data-and-history.md",
+      "localized": "Generic upload and status copy; no real private vocabulary ships",
+      "test": "tests/feature-inventory.test.mjs: upload, state and storage boundaries",
+      "interaction": "Choose, validate, replace and clear local cache",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "narrator",
+      "name": "Narrator and installed voice controls",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: browser speech synthesis, late voice enumeration, filter, rate and pitch",
+      "article": "content/guides/language-school-mode-and-narration.md",
+      "localized": "Narrated language follows the user-selected mode",
+      "test": "tests/feature-inventory.test.mjs: narrator settings and runtime voice search",
+      "interaction": "Enable, preview, choose automatic/installed voice, rate and pitch",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "scheduled-settings",
+      "name": "Scheduled settings",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: local enabled state, weekdays and time window",
+      "article": "content/guides/schedules-notifications-and-local-history.md",
+      "localized": "Timezone and static-host boundary are explicit",
+      "test": "tests/feature-inventory.test.mjs: schedule control identifiers",
+      "interaction": "Local weekday and start/end-time editor",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "notifications",
+      "name": "Non-blocking notifications and history",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: corner toast stack with persisted bounded notice history",
+      "article": "content/guides/schedules-notifications-and-local-history.md",
+      "localized": "Notice facts remain available without emoji decoration",
+      "test": "tests/feature-inventory.test.mjs: toast and notice-storage contract",
+      "interaction": "Add, review and dismiss notices without blocking content",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "appearance-editor",
+      "name": "Per-element appearance editor",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: anchored/resizable editor for tab and settings targets",
+      "article": "content/guides/material-appearance-and-logo.md",
+      "localized": "Editor labels and platform limits are explicit",
+      "test": "tests/feature-inventory.test.mjs: context route and editor identifiers",
+      "interaction": "Shift+right-click tab, context command, resize, accent and reset",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "custom-logo",
+      "name": "Local app-logo customization",
+      "status": "implemented",
+      "implementation": "public/brand/windows-server-setupper-logo.png shipped mark plus app/site-shell.tsx local PNG/JPEG/WebP validation",
+      "article": "content/guides/material-appearance-and-logo.md",
+      "localized": "No-file, rejected, applied and reset states are authored",
+      "test": "tests/feature-inventory.test.mjs: mark upload and byte-signature boundary",
+      "interaction": "Choose local image, validate, apply live and reset to the shipped approved mark",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "file-converter",
+      "name": "Local file converter",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: bounded JSON/text to formatted JSON, JSON Lines and Markdown",
+      "article": "content/guides/local-file-converter.md",
+      "localized": "Unavailable adapter categories name the exact static-site reason",
+      "test": "tests/feature-inventory.test.mjs: converter catalog and local-only boundary",
+      "interaction": "Choose, select target, convert and download without changing source",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "ollama-manager",
+      "name": "Local Ollama suite manager boundary",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: explicit user-initiated documented loopback health/tags request",
+      "article": "content/guides/local-ollama-manager.md",
+      "localized": "Missing, stopped, cross-origin blocked and no-cloud-fallback states are explicit",
+      "test": "tests/feature-inventory.test.mjs: loopback endpoints and no proxy contract",
+      "interaction": "Check local runtime; full installed-app manager is documented as unavailable",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "authenticator",
+      "name": "Local TOTP authenticator boundary",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: in-memory RFC 6238 SHA-1/6/30 calculator",
+      "article": "content/guides/authenticator-toy-locks-and-support.md",
+      "localized": "Security facts, parameters and missing vault boundary remain exact",
+      "test": "tests/feature-inventory.test.mjs: TOTP algorithm and no-storage contract",
+      "interaction": "Manual Base32 entry and user-initiated current-code calculation",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "toy-locks",
+      "name": "Per-tab toy locks",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: separate SHA-256 digest per tab and 15-minute unlock",
+      "article": "content/guides/authenticator-toy-locks-and-support.md",
+      "localized": "Every lock surface says it is not security and names reset route",
+      "test": "tests/feature-inventory.test.mjs: lock, unlock and reset-route identifiers",
+      "interaction": "Create, unlock, relock and remove each tab lock",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "support-tickets",
+      "name": "Local Support Tickets",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: local ticket form, generated identifier, status and browser reset guidance",
+      "article": "content/guides/authenticator-toy-locks-and-support.md",
+      "localized": "Unstyled disclosure says no network, data collection or human response",
+      "test": "tests/feature-inventory.test.mjs: disclosure and local ticket contract",
+      "interaction": "Create and list local tickets; no in-app storage deletion",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "command-palette",
+      "name": "Command palette",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: Ctrl+Shift+F dialog, full search and destination actions",
+      "article": "content/guides/navigation-search-and-command-palette.md",
+      "localized": "Command labels remain understandable in active language mode",
+      "test": "tests/feature-inventory.test.mjs: keyboard shortcut and command search identifiers",
+      "interaction": "Keyboard open, search, activate and close",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "offline-docs",
+      "name": "Bundled offline documentation",
+      "status": "implemented",
+      "implementation": "content/guides plus scripts/generate-docs.mjs and public/sw.js",
+      "article": "content/guides/offline-documentation.md",
+      "localized": "Bundled articles render without a content network",
+      "test": "tests/feature-inventory.test.mjs: article count, generated bundle and service worker",
+      "interaction": "Search, select, read and follow suggested articles",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "changelog",
+      "name": "Release changelog and immutable links",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: verified release tag, commit, asset, digest and evidence boundary",
+      "article": "content/guides/releases-changelog-and-downloads.md",
+      "localized": "Release facts are not altered by funny levels",
+      "test": "tests/rendered-html.test.mjs: exact tag, commit, asset and digest",
+      "interaction": "Direct immutable installer, release and commit links",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "destructive-confirmation",
+      "name": "Destructive-action confirmation boundary",
+      "status": "documented-no-destructive-site-action",
+      "implementation": "app/site-shell.tsx: reset routes never delete browser storage in-app",
+      "article": "content/guides/authenticator-toy-locks-and-support.md",
+      "localized": "Emergency exit and reset facts remain unambiguous",
+      "test": "tests/feature-inventory.test.mjs: absence of localStorage.clear and explicit route",
+      "interaction": "No destructive site action exists; browser storage controls own deletion",
+      "capture": "Not applicable until a destructive in-site action exists"
+    },
+    {
+      "id": "local-history",
+      "name": "Local settings and record history boundary",
+      "status": "bounded-static-equivalent",
+      "implementation": "app/site-shell.tsx: bounded persisted notices, tickets, preferences and lock records",
+      "article": "content/guides/privacy-local-data-and-history.md",
+      "localized": "Export and omission boundaries are documented",
+      "test": "tests/feature-inventory.test.mjs: stable device-local storage keys",
+      "interaction": "Review local tickets, locks and notices; full Git-backed history requires installed app",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "release-download",
+      "name": "Verified installer download",
+      "status": "implemented",
+      "implementation": "app/site-shell.tsx: immutable GitHub release asset URL and exact SHA-256",
+      "article": "content/guides/releases-changelog-and-downloads.md",
+      "localized": "Unsigned and verification boundaries stay factual",
+      "test": "tests/rendered-html.test.mjs: exact download facts",
+      "interaction": "Home and Download tabs link the verified installer",
+      "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
+    },
+    {
+      "id": "hosting",
+      "name": "Sites and GitHub Pages publication readiness",
+      "status": "pending-external-publication",
+      "implementation": ".openai/hosting.json and Cloudflare Worker-compatible vinext build",
+      "article": "content/guides/offline-documentation.md",
+      "localized": "No site URL is claimed before publication",
+      "test": "tests/rendered-html.test.mjs and npm run build",
+      "interaction": "Local built site only in this delegated lane",
+      "capture": "Pending publication, browser verification and real captures"
+    }
+  ]
+}
