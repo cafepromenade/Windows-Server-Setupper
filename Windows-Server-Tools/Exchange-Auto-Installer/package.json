@@ -10,9 +10,9 @@
     "start": "electron .",
     "clean": "node scripts/clean-dist.js",
     "prebuild": "npm run clean",
-    "build": "electron-builder --dir --win --publish never",
+    "build": "node scripts/run-electron-builder.js --dir",
     "prepackage": "npm run clean",
-    "package": "electron-builder --win squirrel --publish never"
+    "package": "node scripts/run-electron-builder.js --squirrel"
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1"
