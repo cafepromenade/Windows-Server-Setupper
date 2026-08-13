@@ -1,0 +1,216 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+set "ROOT=%~dp0"
+set "PROJECT_OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release"
+set "PROJECT_EXE=%PROJECT_OUTPUT%\Windows-Server-Tools.exe"
+set "COMMIT_FILE=%PROJECT_OUTPUT%\source-commit.txt"
+set "BUILD_HASH_FILE=%PROJECT_OUTPUT%\source-executable.sha256"
+set "SCRIPT=%ROOT%packaging\WindowsServerTools.iss"
+set "INSTALLER_DIR=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Installer"
+set "SILENT_MODE=0"
+
+if /i "%SILENT%"=="1" set "SILENT_MODE=1"
+for %%A in (%*) do (
+    if /i "%%~A"=="/s" set "SILENT_MODE=1"
+    if /i "%%~A"=="--silent" set "SILENT_MODE=1"
+)
+
+pushd "%ROOT%" >nul || (
+    echo ERROR: Could not enter the repository root: "%ROOT%".
+    exit /b 1
+)
+
+echo [1/6] Recording the exact source commit...
+where git.exe >nul 2>&1 || (
+    echo ERROR: Missing dependency: Git is required to identify the installer source commit.
+    popd >nul
+    exit /b 1
+)
+for /f "delims=" %%I in ('git rev-parse HEAD 2^>nul') do set "SOURCE_COMMIT=%%I"
+if not defined SOURCE_COMMIT (
+    echo ERROR: Could not resolve the current Git commit.
+    popd >nul
+    exit /b 1
+)
+git diff --cached --quiet --ignore-submodules --
+if errorlevel 1 (
+    echo ERROR: Staged files differ from commit %SOURCE_COMMIT%. Commit the intended source before packaging.
+    popd >nul
+    exit /b 1
+)
+set "GENERATED_TRACKED_DIFF="
+set "UNEXPECTED_TRACKED_DIFF="
+for /f "delims=" %%I in ('git diff --name-only --ignore-submodules --') do (
+    call :is_known_build_byproduct "%%I"
+    if errorlevel 1 (
+        if not defined UNEXPECTED_TRACKED_DIFF set "UNEXPECTED_TRACKED_DIFF=%%I"
+    ) else (
+        set "GENERATED_TRACKED_DIFF=1"
+    )
+)
+if defined UNEXPECTED_TRACKED_DIFF (
+    echo ERROR: Tracked source differs from commit %SOURCE_COMMIT% at "%UNEXPECTED_TRACKED_DIFF%".
+    popd >nul
+    exit /b 1
+)
+if defined GENERATED_TRACKED_DIFF (
+    call :validate_candidate_build
+    set "GENERATED_PROVENANCE_EXIT=!ERRORLEVEL!"
+    if not "!GENERATED_PROVENANCE_EXIT!"=="0" (
+        echo ERROR: Generated build byproducts differ, but no matching commit-and-hash build provenance exists.
+        popd >nul
+        exit /b !GENERATED_PROVENANCE_EXIT!
+    )
+    git restore --source=HEAD -- "Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref"
+    set "GENERATED_RESTORE_EXIT=!ERRORLEVEL!"
+    if not "!GENERATED_RESTORE_EXIT!"=="0" (
+        echo ERROR: The five known tracked build byproducts could not be restored to commit %SOURCE_COMMIT%.
+        popd >nul
+        exit /b !GENERATED_RESTORE_EXIT!
+    )
+)
+git diff --quiet --ignore-submodules --
+if errorlevel 1 (
+    echo ERROR: Tracked files still differ from commit %SOURCE_COMMIT% after generated-output reconciliation.
+    popd >nul
+    exit /b 1
+)
+set "UNTRACKED_SOURCE="
+for /f "delims=" %%I in ('git ls-files --others --exclude-standard') do if not defined UNTRACKED_SOURCE set "UNTRACKED_SOURCE=%%I"
+if defined UNTRACKED_SOURCE (
+    echo ERROR: Untracked source exists at "%UNTRACKED_SOURCE%". Commit or remove it before packaging.
+    popd >nul
+    exit /b 1
+)
+echo Source commit: %SOURCE_COMMIT%
+
+echo [2/6] Ensuring an exact Release application build...
+call :validate_candidate_build
+set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
+if "!CANDIDATE_BUILD_EXIT!"=="0" (
+    echo Reusing the existing commit-exact Release application.
+) else (
+    call "%ROOT%build.bat" /s
+    set "BUILD_EXIT=!ERRORLEVEL!"
+    if not "!BUILD_EXIT!"=="0" (
+        echo ERROR: The Release application build failed with exit code !BUILD_EXIT!; no installer was created.
+        popd >nul
+        exit /b !BUILD_EXIT!
+    )
+    call :validate_candidate_build
+    set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
+    if not "!CANDIDATE_BUILD_EXIT!"=="0" (
+        echo ERROR: The Release build did not produce commit-exact executable provenance.
+        popd >nul
+        exit /b !CANDIDATE_BUILD_EXIT!
+    )
+)
+
+echo [3/6] Locating Inno Setup 6...
+call :find_iscc
+if not defined ISCC (
+    echo Inno Setup 6 was not found. Installing canonical winget package JRSoftware.InnoSetup...
+    where winget.exe >nul 2>&1 || (
+        echo ERROR: Missing dependency: Inno Setup 6.
+        echo Tried installed locations and winget, but winget is unavailable.
+        popd >nul
+        exit /b 1
+    )
+    winget install --id JRSoftware.InnoSetup --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+    set "INNO_INSTALL_EXIT=!ERRORLEVEL!"
+    if not "!INNO_INSTALL_EXIT!"=="0" (
+        echo ERROR: Inno Setup installation failed through canonical winget package JRSoftware.InnoSetup.
+        popd >nul
+        exit /b !INNO_INSTALL_EXIT!
+    )
+    call :find_iscc
+)
+if not defined ISCC (
+    echo ERROR: Inno Setup installed without a discoverable ISCC.exe.
+    popd >nul
+    exit /b 1
+)
+echo Found Inno Setup compiler: "%ISCC%"
+
+echo [4/6] Packaging an unsigned installer...
+"%ISCC%" "/DSourceCommit=%SOURCE_COMMIT%" "%SCRIPT%"
+set "ISCC_EXIT=!ERRORLEVEL!"
+if not "!ISCC_EXIT!"=="0" (
+    echo ERROR: Inno Setup failed to package "%SCRIPT%".
+    popd >nul
+    exit /b !ISCC_EXIT!
+)
+
+set "INSTALLER=%INSTALLER_DIR%\WindowsServerTools-Setup-%SOURCE_COMMIT%.exe"
+echo [5/6] Verifying installer shape and unsigned status...
+if not exist "%INSTALLER%" (
+    echo ERROR: Inno Setup returned success but the installer is missing: "%INSTALLER%".
+    popd >nul
+    exit /b 1
+)
+for %%I in ("%INSTALLER%") do set "INSTALLER_SIZE=%%~zI"
+if %INSTALLER_SIZE% LSS 102400 (
+    echo ERROR: Installer is unexpectedly small: %INSTALLER_SIZE% bytes at "%INSTALLER%".
+    popd >nul
+    exit /b 1
+)
+set "WST_SIGNATURE_TARGET=%INSTALLER%"
+powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $stream=[IO.File]::Open($env:WST_SIGNATURE_TARGET,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read); $reader=New-Object IO.BinaryReader($stream); try { if ($stream.Length -lt 64) { throw 'The installer is too short to be a valid PE file.'; } if ($reader.ReadUInt16() -ne 0x5A4D) { throw 'The installer does not have an MZ header.'; } $stream.Position=0x3C; $peOffset=$reader.ReadUInt32(); if ($peOffset -gt ($stream.Length-24)) { throw 'The PE header offset is outside the installer.'; } $stream.Position=$peOffset; if ($reader.ReadUInt32() -ne 0x00004550) { throw 'The installer does not have a PE signature.'; } [void]$reader.ReadUInt16(); [void]$reader.ReadUInt16(); [void]$reader.ReadUInt32(); [void]$reader.ReadUInt32(); [void]$reader.ReadUInt32(); $optionalSize=$reader.ReadUInt16(); [void]$reader.ReadUInt16(); $optionalStart=$stream.Position; if ($optionalSize -lt 2 -or ($optionalStart+$optionalSize) -gt $stream.Length) { throw 'The PE optional header is invalid.'; } $magic=$reader.ReadUInt16(); if ($magic -eq 0x10B) { $directoryCountOffset=92; $directoryTableOffset=96; } elseif ($magic -eq 0x20B) { $directoryCountOffset=108; $directoryTableOffset=112; } else { throw 'The PE optional-header format is unsupported.'; } if ($optionalSize -lt ($directoryTableOffset+40)) { throw 'The PE optional header does not contain a complete security-directory entry.'; } $stream.Position=$optionalStart+$directoryCountOffset; $directoryCount=$reader.ReadUInt32(); if ($directoryCount -le 4) { 'NotSigned'; exit 0; } $stream.Position=$optionalStart+$directoryTableOffset+32; $certificateOffset=$reader.ReadUInt32(); $certificateSize=$reader.ReadUInt32(); if (($certificateOffset -eq 0) -and ($certificateSize -eq 0)) { 'NotSigned'; exit 0; } if (($certificateOffset -eq 0) -or ($certificateSize -eq 0)) { throw 'The PE security-directory entry is inconsistent.'; } if (($certificateOffset+[uint64]$certificateSize) -gt [uint64]$stream.Length) { throw 'The PE certificate table extends beyond the installer.'; } throw ('The installer contains a PE certificate table at offset '+$certificateOffset+' with size '+$certificateSize+'.'); } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1; } finally { $reader.Dispose(); $stream.Dispose(); }"
+set "SIGNATURE_CHECK_EXIT=!ERRORLEVEL!"
+if not "!SIGNATURE_CHECK_EXIT!"=="0" (
+    echo ERROR: The installer is signed or its PE certificate table could not be validated safely.
+    popd >nul
+    exit /b !SIGNATURE_CHECK_EXIT!
+)
+
+echo [6/6] Calculating SHA-256...
+set "WST_HASH_TARGET=%INSTALLER%"
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "INSTALLER_SHA256=%%H"
+if not defined INSTALLER_SHA256 (
+    echo ERROR: Could not calculate the installer SHA-256.
+    popd >nul
+    exit /b 1
+)
+
+echo Installer build complete.
+echo Source commit: %SOURCE_COMMIT%
+echo Installer: "%INSTALLER%"
+echo Size: %INSTALLER_SIZE% bytes
+echo SHA-256: %INSTALLER_SHA256%
+echo Signature status: UNSIGNED ^(PE certificate table absent^)
+echo This project intentionally does not code-sign release artifacts.
+
+popd >nul
+exit /b 0
+
+:find_iscc
+set "ISCC="
+if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+exit /b 0
+
+:is_known_build_byproduct
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" exit /b 0
+if /i "%~1"=="Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref" exit /b 0
+exit /b 1
+
+:validate_candidate_build
+if not exist "%PROJECT_EXE%" exit /b 1
+if not exist "%COMMIT_FILE%" exit /b 1
+if not exist "%BUILD_HASH_FILE%" exit /b 1
+set "BUILT_COMMIT="
+set "RECORDED_BUILD_HASH="
+set "CURRENT_BUILD_HASH="
+set /p "BUILT_COMMIT=" < "%COMMIT_FILE%"
+set /p "RECORDED_BUILD_HASH=" < "%BUILD_HASH_FILE%"
+if /i not "%BUILT_COMMIT%"=="%SOURCE_COMMIT%" exit /b 1
+set "WST_HASH_TARGET=%PROJECT_EXE%"
+for /f "usebackq delims=" %%H in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$stream=[IO.File]::OpenRead($env:WST_HASH_TARGET); try { $sha=[Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() } } finally { $stream.Dispose() }"`) do set "CURRENT_BUILD_HASH=%%H"
+if not defined CURRENT_BUILD_HASH exit /b 1
+if /i not "%CURRENT_BUILD_HASH%"=="%RECORDED_BUILD_HASH%" exit /b 1
+exit /b 0

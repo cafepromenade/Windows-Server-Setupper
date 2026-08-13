@@ -294,76 +294,14 @@ namespace Exchange_Installer
                 Console.WriteLine("An error occurred while refreshing group policies: " + ex.Message);
             }
         }
-        public static async Task InstallActiveDirectoryAndPromoteToDC(string domainName, string safeModeAdminPassword, string domainNetbiosName = "CONTOSO")
+        public static Task<bool> InstallActiveDirectoryAndPromoteToDC(string domainName, string domainNetbiosName)
         {
-            try
-            {
-                // First script to install AD DS and Management Tools
-                string installADDSCommand = @"
-            Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools;
-        ";
-
-                // Second script to promote the server to a Domain Controller
-                string promoteCommand = $@"
-            Import-Module ADDSDeployment;
-            Install-ADDSForest `
-            -CreateDnsDelegation:$false `
-            -DatabasePath ""C:\Windows\NTDS"" `
-            -DomainMode ""WinThreshold"" `
-            -DomainName ""{domainName}"" `
-            -DomainNetbiosName ""{domainNetbiosName}"" `
-            -ForestMode ""WinThreshold"" `
-            -InstallDns:$true `
-            -LogPath ""C:\Windows\NTDS"" `
-            -NoRebootOnCompletion:$false `
-            -SysvolPath ""C:\Windows\SYSVOL"" `
-            -SafeModeAdministratorPassword (ConvertTo-SecureString ""{safeModeAdminPassword}"" -AsPlainText -Force) `
-            -Force:$true
-        ";
-
-                // Create a new process to run PowerShell to install AD DS
-                Process process = new Process();
-                process.StartInfo.FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
-                process.StartInfo.Arguments = $"-Command \"{installADDSCommand}\"";
-                process.StartInfo.RedirectStandardOutput = false; // Allows the window to show
-                process.StartInfo.UseShellExecute = true; // This will show the PowerShell window
-                process.StartInfo.CreateNoWindow = false; // Do not create a hidden window
-                process.StartInfo.Verb = "runas"; // This ensures the process starts with administrative privileges
-
-                // Start the AD DS installation process
-                process.Start();
-                process.WaitForExit();
-
-                // Check if AD DS installation was successful
-                if (true)
-                {
-                    //MessageBox.Show("Active Directory Domain Services and Management Tools installed successfully.");
-
-                    File.WriteAllText(Environment.GetEnvironmentVariable("APPDATA") + "\\Domain.txt", domainName);
-                    // Now promote the server to a Domain Controller
-                    process.StartInfo.Verb = "runas"; // This ensures the process starts with administrative privileges
-                    process.StartInfo.Arguments = $"-NoExit -Command \"{promoteCommand}\"";
-                    process.Start();
-                    process.WaitForExit();
-
-                    if (process.ExitCode == 0)
-                    {
-                        MessageBox.Show("Server successfully promoted to Domain Controller.");
-                    }
-                    else
-                    {
-                        MessageBox.Show("Failed to promote server to Domain Controller.");
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Failed to install Active Directory Domain Services.");
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Exception: {ex.Message}");
-            }
+            MessageBox.Show(
+                "Active Directory promotion is disabled because credentials must be configured securely. This installer has no secure guided input for the Directory Services Restore Mode credential yet. Use an updated installer with secure guided credential input, then retry.",
+                "Credentials required",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return Task.FromResult(false);
         }
 
 
@@ -384,48 +322,15 @@ namespace Exchange_Installer
             });
         }
 
-        public static async Task ConfigureSendConnectors(string fqdn)
+        public static Task<bool> ConfigureSendConnectors(string fqdn)
         {
-            string serverName = Environment.MachineName; // Dynamically fetch the server name
-
-            // Provide credentials for Gmail and Outlook
-            string gmailUsername = "Administrator"; // Replace with Gmail username
-            string gmailPassword = "P@ssw0rd";      // Replace with Gmail password
-            string outlookUsername = "Administrator"; // Replace with Outlook username
-            string outlookPassword = "P@ssw0rd";      // Replace with Outlook password
-
-            // PowerShell script to configure Gmail and Outlook Send Connectors with credentials
-            string script = $@"
-    # Convert credentials to a PSCredential object
-    $gmailSecurePassword = ConvertTo-SecureString '{gmailPassword}' -AsPlainText -Force;
-    $gmailCredential = New-Object System.Management.Automation.PSCredential('{gmailUsername}', $gmailSecurePassword);
-
-    $outlookSecurePassword = ConvertTo-SecureString '{outlookPassword}' -AsPlainText -Force;
-    $outlookCredential = New-Object System.Management.Automation.PSCredential('{outlookUsername}', $outlookSecurePassword);
-
-    # Add Gmail Send Connector
-    if (!(Get-SendConnector | Where-Object {{ $_.Name -eq 'Gmail Send Connector' }})) {{
-        New-SendConnector -Name 'Gmail Send Connector' -Usage Internet -AddressSpaces 'smtp.gmail.com' -SmartHosts 'smtp.gmail.com' `
-            -SourceTransportServers '{serverName}' -Port 587 -RequireTLS $true -AuthenticationCredential $gmailCredential;
-        Write-Output 'Gmail Send Connector created successfully.';
-    }} else {{
-        Write-Output 'Gmail Send Connector already exists.';
-    }}
-
-    # Add Outlook Send Connector
-    if (!(Get-SendConnector | Where-Object {{ $_.Name -eq 'Outlook Send Connector' }})) {{
-        New-SendConnector -Name 'Outlook Send Connector' -Usage Internet -AddressSpaces 'smtp.office365.com' -SmartHosts 'smtp.office365.com' `
-            -SourceTransportServers '{serverName}' -Port 587 -RequireTLS $true -AuthenticationCredential $outlookCredential;
-        Write-Output 'Outlook Send Connector created successfully.';
-    }} else {{
-        Write-Output 'Outlook Send Connector already exists.';
-    }}
-";
-
-            // Run the PowerShell script
-            await RunExchangePowerShellScript(script);
+            MessageBox.Show(
+                "External mail connectors are disabled because credentials must be configured securely. This installer has no secure guided input for relay credentials yet. Use an updated installer with secure guided credential input, then retry.",
+                "Credentials required",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return Task.FromResult(false);
         }
-
 
 
         public static async Task RunExchangePowerShellScript(string script)

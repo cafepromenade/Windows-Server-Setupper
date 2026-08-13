@@ -46,19 +46,16 @@ namespace SCCM_Installer
         public static string DomainSite = DomainName + "." + DomainCOM;
         public static string DatabaseName = "CM_XYZ";
 
-        public async Task InstallSQLServer()
+        public Task<bool> InstallSQLServer()
         {
-            string SQLPath = "C:\\SQL_Setup\\setup.exe";
-            string script = $"Start-Process -FilePath \"{SQLPath}\" -ArgumentList \"/QUIET /ACTION=Install /FEATURES=SQLENGINE /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT='NT AUTHORITY\\SYSTEM' /SQLSYSADMINACCOUNTS='BUILTIN\\Administrators' /SAPWD='P@ssw0rd123!' /SECURITYMODE=SQL /IACCEPTSQLSERVERLICENSETERMS\" -Wait";
-
-            
-                //await Functions.RunPowerShellScript(script);
-                await Task.Run(() =>
-                {
-                    Process.Start(SQLPath, "/QUIET /ACTION=Install /FEATURES=SQLENGINE /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT=\"NT AUTHORITY\\SYSTEM\" /SQLSYSADMINACCOUNTS=\"BUILTIN\\Administrators\" /SAPWD=\"P@ssw0rd123!\" /SECURITYMODE=SQL /IACCEPTSQLSERVERLICENSETERMS").WaitForExit();
-                }); 
-            
+            MessageBox.Show(
+                "SQL Server installation is disabled because credentials must be configured securely. This installer has no secure guided input for SQL setup credentials yet. Use an updated installer with secure guided credential input, then retry.",
+                "Credentials required",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return Task.FromResult(false);
         }
+
         static void StartSQLServerService(string instanceName)
         {
             string serviceName = instanceName == "MSSQLSERVER" ? "MSSQLSERVER" : $"MSSQL${instanceName}";
@@ -94,95 +91,14 @@ namespace SCCM_Installer
             }
         }
 
-        public async Task SQLDealer()
+        public Task<bool> SQLDealer()
         {
-            string StartSQL_Script = "Start-Service -Name \"MSSQLSERVER\"";
-
-            //await Task.Delay(-1);
-
-            string EnableTCP_Script = @"# Get access to SqlWmiManagement DLL on the machine with SQL
-# we are on, which is where SQL Server was installed.
-# Note: This is installed in the GAC by SQL Server Setup.
-
-[System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
-
-# Instantiate a ManagedComputer object that exposes primitives to control the
-# Installation of SQL Server on this machine.
-
-$wmi = New-Object 'Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer' localhost
-
-# Enable the TCP protocol on the default instance. If the instance is named,
-# replace MSSQLSERVER with the instance name in the following line.
-
-$tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
-$tcp.IsEnabled = $true
-$tcp.Alter()
-
-# You need to restart SQL Server for the change to persist
-# -Force takes care of any dependent services, like SQL Agent.
-# Note: If the instance is named, replace MSSQLSERVER with MSSQL$ followed by
-# the name of the instance (e.g., MSSQL$MYINSTANCE)
-
-Restart-Service -Name MSSQLSERVER -Force";
-
-            string CreateDatabaseScript = @"# Variables
-Set-ExecutionPolicy Bypass -Scope LocalMachine
-
-$SQLInstance = ""MSSQLSERVER""  # Replace with your instance name if different
-$SCCMDBName = ""CM_XYZ""  # Desired SCCM database name
-
-# Load the SQL Server module (use SQLPS if SqlServer is unavailable)
-Import-Module SqlServer -ErrorAction SilentlyContinue
-if (-not (Get-Module -Name SqlServer)) {
-    Import-Module SQLPS -DisableNameChecking
-}
-
-# Enable TCP/IP for SQL Server
-Write-Host ""Enabling TCP/IP for SQL Server...""
-Invoke-Sqlcmd -Query ""
-DECLARE @TcpEnabled INT;
-SELECT @TcpEnabled = protocol_id FROM sys.dm_server_services WHERE service_name = 'SQL Server ($SQLInstance)';
-IF (@TcpEnabled IS NOT NULL)
-BEGIN
-    EXEC xp_cmdshell 'netsh int ipv4 show dynamicport tcp';
-    EXEC xp_cmdshell 'netsh int ipv4 set dynamicport tcp start=49152 num=16384';
-END;
-""
-
-# Restart SQL Server Service
-Write-Host ""Restarting SQL Server service to apply changes...""
-Restart-Service -Name ""MSSQLSERVER""
-
-# Create SCCM Database
-Invoke-Sqlcmd -Query ""CREATE DATABASE [$SCCMDBName] COLLATE SQL_Latin1_General_CP1_CI_AS;"" -ServerInstance $SQLInstance
-Start-Sleep -Seconds 5.5
-
-Write-Host ""TCP/IP has been enabled and database [$SCCMDBName] created.""
-".Replace("MSSQLSERVER",Environment.MachineName);
-            File.WriteAllText(Environment.GetEnvironmentVariable("APPDATA") + "\\SQLScript.ps1",CreateDatabaseScript);
-            await Functions.RunExchangePowerShellScript(StartSQL_Script);
-            // Wait for sql server //
-            //await Functions.WaitForServiceAsync("MSSQLSERVER");
-            string myConnectionString = "Server=localhost;Database=master;User Id=sa;Password=P@ssw0rd123!;";
-            try
-            {
-                using (var connection = new SqlConnection(myConnectionString))
-                {
-                    connection.Open();
-                    var command = connection.CreateCommand();
-                    command.CommandText = "CREATE DATABASE CM_XYZ";
-                    command.ExecuteNonQuery();
-                }
-
-            }
-            catch 
-            {
-
-            }
-            await Functions.RunPowerShellScript(CreateDatabaseScript);
-            ExecuteScript(File.ReadAllText(Environment.GetEnvironmentVariable("APPDATA") + "\\SQLScript.ps1"));
-            await Functions.RunPowerShellScript(@"Invoke-Sqlcmd -Query ""CREATE DATABASE [hui] COLLATE SQL_Latin1_General_CP1_CI_AS;"" -ServerInstance " + Environment.MachineName);
-            await Functions.RunExchangePowerShellScript(EnableTCP_Script);
+            MessageBox.Show(
+                "SQL configuration is disabled because credentials must be configured securely. This installer has no secure guided input for SQL authentication yet. Use an updated installer with secure guided credential input, then retry.",
+                "Credentials required",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return Task.FromResult(false);
         }
 
         public void ExecuteScript(string pathToScript)
@@ -283,7 +199,7 @@ Write-Host ""TCP/IP has been enabled and database [$SCCMDBName] created.""
 
         bool QuickInstall => File.Exists("C:\\quick.txt");
 
-        public async Task ProcessInstall(bool NoDomain = false)
+        public async Task<bool> ProcessInstall(bool NoDomain = false)
         {
             EnableStuff = false;
             MainTextBox.Text += "Starting install " + DateTime.Now.ToString("F");
@@ -300,22 +216,40 @@ Write-Host ""TCP/IP has been enabled and database [$SCCMDBName] created.""
             await InstallADKPE();
             // Install SQL Server First //
             MainTextBox.Text += "\nInstalling SQL Server" + DateTime.Now.ToString("F");
-            await InstallSQLServer();
+            if (!await InstallSQLServer())
+            {
+                MainTextBox.Text += "\nStopped: SQL Server installation requires secure credential input before this setup can continue.";
+                EnableStuff = true;
+                return false;
+            }
             // Configure SQL Database //
             MainTextBox.Text += "\nConfiguring SQL" + DateTime.Now.ToString("F");
-            await SQLDealer();
+            if (!await SQLDealer())
+            {
+                MainTextBox.Text += "\nStopped: SQL configuration requires secure credential input before this setup can continue.";
+                EnableStuff = true;
+                return false;
+            }
             // DA DHUI //
             await Functions.DaDhui(true, "install");
             if (!NoDomain)
             {
                 MainTextBox.Text += "\nPromoting to Domain" + DateTime.Now.ToString("F");
-                await Functions.InstallActiveDirectoryAndPromoteToDC(textBox1.Text, "P@ssw0rd", textBox1.Text.Split('.')[0].ToUpper()); 
+                if (!await Functions.InstallActiveDirectoryAndPromoteToDC(
+                    textBox1.Text,
+                    textBox1.Text.Split('.')[0].ToUpper()))
+                {
+                    MainTextBox.Text += "\nStopped: Active Directory promotion requires secure credential input before this setup can continue.";
+                    EnableStuff = true;
+                    return false;
+                }
             }
             else
             {
                 Command.RunCommandHidden("shutdown /r /f /t 0");
             }
             EnableStuff = true;
+            return true;
         }
     }
 }

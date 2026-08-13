@@ -270,7 +270,14 @@ namespace Exchange_Installer
     Set-ReceiveConnector -Identity '{Environment.MachineName}\Default Frontend {Environment.MachineName}' -Fqdn '{FQDN}';
     Set-SendConnector -Identity 'Internal Mail' -Fqdn '{FQDN}';
 ");
-                    await Functions.ConfigureSendConnectors(FQDN);
+                    if (!await Functions.ConfigureSendConnectors(FQDN))
+                    {
+                        DomainNameLabel.Text = "Stopped: secure relay credentials are required before setup can continue.";
+                        DoNotClose = false;
+                        OKButton.Enabled = true;
+                        textBox1.Enabled = true;
+                        return;
+                    }
                     await Functions.ClearPendingReboots();
                 }
                 catch 
@@ -368,7 +375,14 @@ namespace Exchange_Installer
     Set-ReceiveConnector -Identity '{Environment.MachineName}\Default Frontend {Environment.MachineName}' -Fqdn '{FQDN}';
     Set-SendConnector -Identity 'Internal Mail' -Fqdn '{FQDN}';
 ");
-                await Functions.ConfigureSendConnectors(FQDN);
+                if (!await Functions.ConfigureSendConnectors(FQDN))
+                {
+                    DomainNameLabel.Text = "Stopped: secure relay credentials are required before setup can continue.";
+                    DoNotClose = false;
+                    OKButton.Enabled = true;
+                    textBox1.Enabled = true;
+                    return;
+                }
                 DoNotClose = false;
             }
             else if (Environment.GetCommandLineArgs().Contains("chrome"))
@@ -476,7 +490,16 @@ if ($longPathsEnabled.LongPathsEnabled -eq 1) {
                 await Functions.RunPowerShellScript("Add-DnsServerForwarder -IPAddress 8.8.4.4");
                 await Functions.RunPowerShellScript(@"New-ItemProperty -Path ""HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"" -Name ""VerboseStatus"" -Value 1 -PropertyType DWORD -Force");
                 // Promote to DC //
-                await Functions.InstallActiveDirectoryAndPromoteToDC(DomainNameText, "P@ssw0rd", DomainNameText.Split('.')[0].ToUpper());
+                if (!await Functions.InstallActiveDirectoryAndPromoteToDC(
+                    DomainNameText,
+                    DomainNameText.Split('.')[0].ToUpper()))
+                {
+                    DomainNameLabel.Text = "Stopped: secure Directory Services Restore Mode credentials are required before setup can continue.";
+                    DoNotClose = false;
+                    OKButton.Enabled = true;
+                    textBox1.Enabled = true;
+                    return;
+                }
                 DoNotClose = false;
                 Close();
             }
