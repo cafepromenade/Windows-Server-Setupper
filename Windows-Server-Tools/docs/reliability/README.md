@@ -6,6 +6,7 @@ This category documents how Windows Server Tools preserves completed work, repor
 
 - [Error recovery and resumable operations](./error-recovery.md) — durable state, bounded retries, process containment, user-reviewed reconciliation, process-wide operation coordination, trusted continuations, accessible recovery controls, diagnostics, limitations, and historical evidence.
 - [Reviewed initial server setup](./reviewed-initial-server-setup.md) — read-only launch, explicit mutation plan, two-key and full-slider authorization, cancellation, dependency ordering, and uncertain-outcome barriers.
+- [Automatic updates](./automatic-updates.md) — strict HTTPS manifest validation, bounded SHA-256 staging, non-blocking states, explicit restart, active-work protection, and rollback behavior.
 - [Primary WPF universal-feature inventory](../completeness/wpf-universal-feature-inventory.md) — per-surface release evidence and explicit blockers across the complete application contract.
 
 ## Current evidence boundary

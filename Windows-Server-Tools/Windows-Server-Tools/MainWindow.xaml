@@ -38,13 +38,24 @@
                         <TextBlock Margin="0,6,0,12"
                                    Text="Startup is read-only. Review the exact network, security, role, and software changes before authorizing this setup."
                                    TextWrapping="Wrap"/>
-                        <Button x:Name="ReviewInitialSetupButton"
-                                MinHeight="44"
-                                Padding="12,6"
-                                Content="Review initial server setup plan…"
-                                AutomationProperties.Name="Review the initial server setup plan"
-                                AutomationProperties.HelpText="Opens the two-key confirmation without changing this server."
-                                Click="ReviewInitialSetupButton_Click"/>
+                        <WrapPanel>
+                            <Button x:Name="ReviewInitialSetupButton"
+                                    MinHeight="44"
+                                    Padding="12,6"
+                                    Margin="0,0,8,8"
+                                    Content="Review initial server setup plan…"
+                                    AutomationProperties.Name="Review the initial server setup plan"
+                                    AutomationProperties.HelpText="Opens the two-key confirmation without changing this server."
+                                    Click="ReviewInitialSetupButton_Click"/>
+                            <Button x:Name="CheckForUpdatesButton"
+                                    MinHeight="44"
+                                    Padding="12,6"
+                                    Margin="0,0,8,8"
+                                    Content="Check for updates"
+                                    AutomationProperties.Name="Check for application updates"
+                                    AutomationProperties.HelpText="Checks the configured HTTPS manifest for an unsigned update."
+                                    Click="CheckForUpdatesButton_Click"/>
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
 
@@ -55,12 +66,14 @@
                                  AutomationProperties.Name="New domain name"
                                  MinHeight="40"
                                  Margin="0,4,0,10"
-                                 TextWrapping="Wrap"/>
+                                 TextWrapping="Wrap"
+                                 TextChanged="UpdateUnsavedStateChanged"/>
                         <TextBlock Text="Directory Services Restore Mode password" TextWrapping="Wrap"/>
                         <PasswordBox x:Name="SafeModePasswordBox"
                                      AutomationProperties.Name="Directory Services Restore Mode password"
                                      MinHeight="40"
-                                     Margin="0,4,0,12"/>
+                                     Margin="0,4,0,12"
+                                     PasswordChanged="UpdateUnsavedStateChanged"/>
                         <WrapPanel>
                             <Button x:Name="InstallActiveDirectoryButton"
                                     Content="Install Active Directory"
@@ -109,7 +122,8 @@
                                  MinHeight="64"
                                  Margin="0,4,0,10"
                                  TextWrapping="Wrap"
-                                 AcceptsReturn="True"/>
+                                 AcceptsReturn="True"
+                                 TextChanged="UpdateUnsavedStateChanged"/>
                         <WrapPanel>
                             <Button x:Name="InstallChocolateyButton"
                                     Content="Install Chocolatey"
@@ -280,6 +294,95 @@
                             IsEnabled="False"
                             AutomationProperties.HelpText="Runs exactly one reviewed initial-setup batch after both keys and the full slider are complete."
                             Click="InitialSetupAuthorizeButton_Click"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+
+        <Border x:Name="UpdateStatusPanel"
+                Panel.ZIndex="22"
+                Visibility="Collapsed"
+                AutomationProperties.LiveSetting="Polite"
+                AutomationProperties.Name="Application update status"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                MaxWidth="520"
+                MaxHeight="360"
+                Margin="16"
+                Padding="16"
+                CornerRadius="12"
+                Background="#FF1A4834"
+                BorderBrush="#FF8ED6B4"
+                BorderThickness="1"
+                KeyboardNavigation.TabNavigation="Local">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="UpdateTitleText"
+                           Grid.Row="0"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           FontSize="16"
+                           TextWrapping="Wrap"/>
+                <ScrollViewer Grid.Row="1"
+                              Margin="0,6,0,0"
+                              MaxHeight="130"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="UpdateStatusText"
+                               Foreground="White"
+                               TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Polite"/>
+                </ScrollViewer>
+                <ProgressBar x:Name="UpdateProgress"
+                             Grid.Row="2"
+                             Visibility="Collapsed"
+                             Height="12"
+                             Margin="0,10,0,0"
+                             Minimum="0"
+                             Maximum="100"
+                             AutomationProperties.Name="Update download progress"/>
+                <TextBlock x:Name="UpdateRestartReasonText"
+                           Grid.Row="3"
+                           Visibility="Collapsed"
+                           Margin="0,8,0,0"
+                           Foreground="White"
+                           TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite"/>
+                <WrapPanel Grid.Row="4" Margin="0,12,0,0" HorizontalAlignment="Right">
+                    <Button x:Name="UpdateReleaseNotesButton"
+                            Visibility="Collapsed"
+                            Content="Release notes"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,8,8"
+                            AutomationProperties.HelpText="Opens the HTTPS release notes for the available version."
+                            Click="UpdateReleaseNotesButton_Click"/>
+                    <Button x:Name="UpdateCancelButton"
+                            Visibility="Collapsed"
+                            Content="Cancel download"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,8,8"
+                            Click="UpdateCancelButton_Click"/>
+                    <Button x:Name="UpdateRestartButton"
+                            Visibility="Collapsed"
+                            Content="Restart to install update"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,8,8"
+                            Click="UpdateRestartButton_Click"/>
+                    <Button x:Name="UpdateLaterButton"
+                            Content="Later"
+                            MinHeight="44"
+                            Padding="12,6"
+                            Margin="0,0,0,8"
+                            AutomationProperties.HelpText="Hides this update status until the next scheduled or manual check."
+                            Click="UpdateLaterButton_Click"/>
                 </WrapPanel>
             </Grid>
         </Border>
