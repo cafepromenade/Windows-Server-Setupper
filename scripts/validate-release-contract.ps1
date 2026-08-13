@@ -65,7 +65,7 @@ function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$
         }
     }
 
-    foreach ($needle in @('npm.cmd" ci', 'npm.cmd" run build', 'Exchange Auto Installer.exe', 'source-commit.txt')) {
+    foreach ($needle in @('verify-application-icons.ps1', 'npm.cmd" ci', 'npm.cmd" run build', 'Exchange Auto Installer.exe', 'source-commit.txt')) {
         if (-not $BuildScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "build.bat is missing Exchange orchestration evidence: $needle" }
     }
     foreach ($needle in @('package-exchange.ps1', 'verify-exchange-package.ps1', 'Exchange Squirrel.Windows output')) {
@@ -103,6 +103,7 @@ if ($SelfTest) {
         'missing release download proof' = @{ workflow = $workflow; publish = $publish -replace 'gh release download', 'gh release inspect'; build = $build; installer = $installer; exchangePackage = $exchangePackage }
         'missing Exchange package verifier' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace 'verify-exchange-package\.ps1', 'missing-verifier.ps1'; exchangePackage = $exchangePackage }
         'missing default-icon rejection' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage -replace 'default Electron icon is used', 'default icon accepted' }
+        'missing application-icon verifier' = @{ workflow = $workflow; publish = $publish; build = $build -replace 'verify-application-icons\.ps1', 'missing-icon-verifier.ps1'; installer = $installer; exchangePackage = $exchangePackage }
     }
     $red = 0
     foreach ($entry in $mutations.GetEnumerator()) {

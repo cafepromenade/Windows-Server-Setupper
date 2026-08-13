@@ -38,6 +38,14 @@ if not "%SOURCE_IS_CLEAN%"=="1" (
     exit /b 1
 )
 
+echo [1/9] Verifying committed multi-resolution application and installer icons...
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%scripts\verify-application-icons.ps1"
+if errorlevel 1 (
+    echo ERROR: Application/installer icon verification failed.
+    popd >nul
+    exit /b 1
+)
+
 call :clean_primary_output
 set "CLEAN_OUTPUT_EXIT=%ERRORLEVEL%"
 if not "%CLEAN_OUTPUT_EXIT%"=="0" (
@@ -46,7 +54,7 @@ if not "%CLEAN_OUTPUT_EXIT%"=="0" (
     exit /b %CLEAN_OUTPUT_EXIT%
 )
 
-echo [1/8] Locating Microsoft Build Tools...
+echo [2/9] Locating Microsoft Build Tools...
 call :find_msbuild
 if not defined MSBUILD (
     echo Microsoft Build Tools were not found. Installing the canonical Microsoft package with winget...
@@ -73,7 +81,7 @@ if not defined MSBUILD (
 )
 echo Found MSBuild: "%MSBUILD%"
 
-echo [2/8] Locating .NET Framework 4.7.2 reference assemblies...
+echo [3/9] Locating .NET Framework 4.7.2 reference assemblies...
 call :find_framework_path
 if not defined FRAMEWORK_PATH (
     if not defined LOCALAPPDATA (
@@ -99,7 +107,7 @@ if not defined FRAMEWORK_PATH (
 )
 echo Reference assemblies: "%FRAMEWORK_PATH%"
 
-echo [3/8] Restoring declared NuGet packages...
+echo [4/9] Restoring declared NuGet packages...
 "%MSBUILD%" "%SOLUTION%" /t:Restore /m /nologo /verbosity:minimal /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform="%SOLUTION_PLATFORM%" /p:FrameworkPathOverride="%FRAMEWORK_PATH%"
 if errorlevel 1 (
     echo ERROR: Package restore failed for "%SOLUTION%".
@@ -107,7 +115,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [4/8] Building the primary WPF Release application...
+echo [5/9] Building the primary WPF Release application...
 "%MSBUILD%" "%PROJECT%" /t:Build /m /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="%PROJECT_PLATFORM%" /p:FrameworkPathOverride="%FRAMEWORK_PATH%"
 if errorlevel 1 (
     echo ERROR: Release build failed for "%PROJECT%".
@@ -115,7 +123,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [5/8] Verifying the primary runnable application...
+echo [6/9] Verifying the primary runnable application...
 if not exist "%OUTPUT%" (
     echo ERROR: MSBuild returned success but the application is missing: "%OUTPUT%".
     popd >nul
@@ -151,7 +159,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [6/8] Locating the pinned Node.js toolchain...
+echo [7/9] Locating the pinned Node.js toolchain...
 call :find_node
 if not defined NODE_HOME (
     echo ERROR: Node.js bootstrap did not return a usable toolchain directory.
@@ -172,7 +180,7 @@ if not exist "%NODE_HOME%\npm.cmd" (
 for /f "delims=" %%I in ('"%NODE_HOME%\node.exe" --version') do set "NODE_VERSION=%%I"
 echo Found Node.js: %NODE_VERSION% at "%NODE_HOME%"
 
-echo [7/8] Restoring the Exchange Auto Installer lockfile dependencies...
+echo [8/9] Restoring the Exchange Auto Installer lockfile dependencies...
 pushd "%EXCHANGE_ROOT%" >nul || (
     echo ERROR: Could not enter the Exchange Auto Installer package directory: "%EXCHANGE_ROOT%".
     popd >nul
@@ -188,7 +196,7 @@ if not "!NPM_CI_EXIT!"=="0" (
     exit /b !NPM_CI_EXIT!
 )
 
-echo [8/8] Building and verifying the unpacked Exchange Auto Installer...
+echo [9/9] Building and verifying the unpacked Exchange Auto Installer...
 call "%NODE_HOME%\npm.cmd" run build
 set "EXCHANGE_BUILD_EXIT=!ERRORLEVEL!"
 popd >nul

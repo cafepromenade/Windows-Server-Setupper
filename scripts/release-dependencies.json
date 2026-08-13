@@ -79,6 +79,7 @@
         "SHA256SUMS.txt",
         "artifact-manifest.json",
         "exchange-package.json",
+        "tracked multi-resolution application and installer icons",
         "line-count.md",
         "line-count.json",
         "release-dependencies.json",

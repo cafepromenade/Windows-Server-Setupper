@@ -24,7 +24,7 @@ This handoff does not claim that the candidate has been pushed, run by GitHub Ac
 | PowerShell parser over release scripts | Passed |
 | Dependency inventory JSON parse | Passed |
 | Positive release workflow contract | Passed |
-| Deliberately broken release contract | `9/9` mutations turned red |
+| Deliberately broken release contract | `10/10` mutations turned red |
 | Missing/corrupt Squirrel asset fixtures | `11/11` fixtures turned red |
 | Git whitespace/error scan | Passed |
 | Workflow structural lint | Passed with shell-content integration disabled on Windows |
@@ -49,7 +49,7 @@ The workflow structural lint uses `actionlint -shellcheck=` on Windows because t
 10. a source-provenance mismatch;
 11. a corrupt setup PE file.
 
-`scripts/validate-release-contract.ps1 -SelfTest` proves nine independent release regressions turn red, including missing triggers, wrong runner, missing root installer route, a prohibited test command, missing always-on failure collection, a mutable action tag, missing release-download proof, missing Exchange package verification, and removal of default-icon rejection.
+`scripts/validate-release-contract.ps1 -SelfTest` proves ten independent release regressions turn red, including missing triggers, wrong runner, missing root installer route, a prohibited test command, missing always-on failure collection, a mutable action tag, missing release-download proof, missing Exchange package verification, removal of default-icon rejection, and removal of the manifest/icon-container verifier.
 
 ## External blockers and ownership boundaries
 
