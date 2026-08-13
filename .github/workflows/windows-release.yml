@@ -1,0 +1,121 @@
+name: Windows release
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  windows_release:
+    name: Build, package, and publish Windows release
+    runs-on: windows-2025
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+      WST_JOB_DISPLAY_NAME: Build, package, and publish Windows release
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_LINK: ''
+      CSC_KEY_PASSWORD: ''
+      CSC_NAME: ''
+      WIN_CSC_LINK: ''
+      WIN_CSC_KEY_PASSWORD: ''
+      AZURE_TENANT_ID: ''
+      AZURE_CLIENT_ID: ''
+      AZURE_CLIENT_SECRET: ''
+      AZURE_CODE_SIGNING_ACCOUNT_NAME: ''
+      AZURE_CERTIFICATE_PROFILE_NAME: ''
+    steps:
+      - name: Check out the exact release commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Install the pinned Node.js runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: Windows-Server-Tools/Exchange-Auto-Installer/package-lock.json
+
+      - name: Record exact job start and release identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path release-evidence -Force | Out-Null
+          $response = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/jobs?per_page=100" | ConvertFrom-Json
+          $job = @($response.jobs | Where-Object {
+            $_.name -ceq $env:WST_JOB_DISPLAY_NAME -and $_.status -eq 'in_progress'
+          } | Sort-Object started_at -Descending)[0]
+          if (-not $job -or -not $job.started_at) {
+            throw "Could not resolve the current Actions job started_at value for '$env:WST_JOB_DISPLAY_NAME'."
+          }
+          $started = [DateTimeOffset]::Parse([string]$job.started_at, [Globalization.CultureInfo]::InvariantCulture)
+          [IO.File]::WriteAllText(
+            (Join-Path $PWD 'release-evidence/job-start.txt'),
+            $started.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'),
+            [Text.UTF8Encoding]::new($false)
+          )
+          $releaseVersion = "1.$env:GITHUB_RUN_NUMBER.$env:GITHUB_RUN_ATTEMPT"
+          "WST_RELEASE_VERSION=$releaseVersion" | Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
+          git --version
+          gh --version
+          node --version
+          npm --version
+          Write-Output "Release package version: $releaseVersion"
+          Write-Output "Job started_at: $($started.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'))"
+
+      - name: Generate exact committed line-count evidence
+        shell: pwsh
+        run: >-
+          ./scripts/count-lines.ps1
+          -OutputPath release-evidence/line-count.md
+          -JsonOutputPath release-evidence/line-count.json
+
+      - name: Build both runnable Windows applications
+        shell: cmd
+        run: build.bat /s
+
+      - name: Build both unsigned installer families
+        shell: cmd
+        run: build-installer.bat /s
+
+      - name: Resolve an unused public dim-sum code name
+        shell: pwsh
+        run: >-
+          ./scripts/resolve-dim-sum.ps1
+          -Repository "$env:GITHUB_REPOSITORY"
+          -OutputPath release-evidence/dim-sum.json
+
+      - name: Assemble allowlisted release assets and evidence
+        shell: pwsh
+        run: ./scripts/assemble-release.ps1
+
+      - name: Publish and verify exactly one non-draft release
+        shell: pwsh
+        run: >-
+          ./scripts/publish-release.ps1
+          -Repository "$env:GITHUB_REPOSITORY"
+
+      - name: Collect safe outputs even after a build or publication failure
+        if: ${{ always() }}
+        continue-on-error: true
+        shell: pwsh
+        run: >-
+          ./scripts/collect-safe-outputs.ps1
+          -JobStatus '${{ job.status }}'
+
+      - name: Upload bounded safe build evidence
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .release-artifacts
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14

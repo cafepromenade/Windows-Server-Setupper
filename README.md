@@ -1,66 +1,86 @@
 # Windows Server Setupper
 
-Windows Server Setupper contains Windows desktop tools for configuring server roles, baseline settings, directory services, shared folders, and selected software. The primary application is a .NET Framework 4.7.2 WPF project under `Windows-Server-Tools/Windows-Server-Tools`.
+Windows Server Setupper contains Windows desktop tools for configuring server roles and a guided Exchange installation. The repository currently ships two Windows applications:
+
+- the .NET Framework 4.7.2 WPF application under `Windows-Server-Tools/Windows-Server-Tools`;
+- the Electron-based Exchange Auto Installer under `Windows-Server-Tools/Exchange-Auto-Installer`.
 
 > [!WARNING]
-> These tools change operating-system roles, network settings, security settings, scheduled tasks, and directory-service data. Build and evaluate them on an appropriate test server, review the requested operations, and run with administrative rights only when the operation requires them.
+> These tools change operating-system roles, network settings, security settings, scheduled tasks, and directory-service data. Evaluate them on an appropriate test server, review every requested operation, and use administrative rights only where the operation requires them.
 
-## Current status
+## Install and release status
 
-The error-recovery hardening is being prepared for an expedited release. The current edits preserve durable, resumable recovery, truthful uncertain outcomes, protected state, and process-wide coordination that allows only one server-changing operation at a time across setup, directory, software, feature, web, and storage actions. They have not yet been represented here as an integrated default-branch commit, published installer, or tagged release.
+The repository contains a complete Windows-only build-and-release contract for both applications. A successful `Windows release` GitHub Actions run produces one unique non-draft release with:
 
-Legacy Exchange/SCCM launch controls are reachable, but their call chains now propagate stopped results and fail closed when secure guided credential input is unavailable. They no longer proceed through the removed embedded-credential behavior.
+- the unsigned WPF installer;
+- the unsigned Exchange Auto Installer `Setup.exe`;
+- the Squirrel.Windows `RELEASES` index, full package, and any generated delta packages;
+- SHA-256, source-commit, line-count, dependency-inventory, runner-context, and artifact-manifest evidence.
 
-The expedited release path intentionally does not run tests, review passes, or UI captures after the current edits. The results below are historical evidence from an earlier source state, not verification of the release candidate. There is no verified installer link for the current edits yet.
+No current combined-release link is asserted here until that workflow has completed and its assets have been read back successfully. The existing recovery-only release remains a historical WPF artifact, not proof that the combined contract has run.
 
-| Area | Current evidence |
-| --- | --- |
-| Focused recovery checks | Historical baseline: `PASS: 146 recovery checks`; not rerun for the current edits |
-| Primary WPF compile | Historical matching-source scratch build succeeded; not a build of the current edits |
-| Review and UI captures | Intentionally not run after the current edits under the expedited release path |
-| Default-branch integration | Pending |
-| Installer / tagged release | Pending; not claimed by this document |
+GitHub Actions intentionally performs no tests, lint, type checking, static analysis, accessibility checks, or screenshots. That accepted trade allows a release to publish from a commit whose local checks would fail; the first report may come from someone running an installer. Local checks remain the responsibility of the change that is pushed.
+
+All installers are intentionally unsigned and may trigger Windows unknown-publisher or SmartScreen warnings. The project never requests, discovers, generates, or uses a code-signing certificate.
+
+## One-click local build
+
+From a Windows command prompt or PowerShell session:
+
+```powershell
+.\build.bat /s
+.\build-installer.bat /s
+```
+
+`build.bat` bootstraps the required Microsoft build tools, pinned .NET Framework 4.7.2 reference assemblies, Node.js version from `.node-version`, NuGet packages, and the exact Exchange npm lockfile. It then builds and validates both runnable applications.
+
+`build-installer.bat` reuses or rebuilds the commit-exact WPF application, creates the unsigned Inno Setup installer, packages the Exchange application through an isolated task-owned copy with Squirrel.Windows, and validates setup executables, `RELEASES`, full/delta packages, provenance, hashes, and unsigned state. It never publishes, creates a tag, or creates a release.
+
+Without `/s` (or `--silent` or `SILENT=1`), `build.bat` offers to launch the primary WPF application after a successful build. Silent mode never prompts or opens a window.
+
+Expected generated outputs are ignored and remain outside Git history:
+
+```text
+Windows-Server-Tools/Windows-Server-Tools/bin/Installer/WindowsServerTools-Setup-<commit>.exe
+Windows-Server-Tools/Exchange-Auto-Installer/dist/squirrel-windows/*-Setup.exe
+Windows-Server-Tools/Exchange-Auto-Installer/dist/squirrel-windows/RELEASES
+Windows-Server-Tools/Exchange-Auto-Installer/dist/squirrel-windows/*-full.nupkg
+Windows-Server-Tools/Exchange-Auto-Installer/dist/squirrel-windows/*-delta.nupkg (when generated)
+```
 
 ## Documentation
 
+- [Release documentation](./docs/release/README.md)
+- [Windows release contract](./docs/release/windows-release.md)
+- [Dependency bootstrap inventory](./docs/release/dependency-bootstrap.md)
 - [Reliability documentation](./Windows-Server-Tools/docs/reliability/README.md)
 - [Error recovery and resumable operations](./Windows-Server-Tools/docs/reliability/error-recovery.md)
 - [Roadmap](./ROADMAP.md)
 - [Current handoff](./HANDOFF.md)
 
-## Build the primary application
-
-The supported source project targets .NET Framework 4.7.2 and Visual Studio 2022. A normal development environment needs:
-
-- Visual Studio 2022 with the **.NET desktop development** workload;
-- the .NET Framework 4.7.2 developer/targeting pack;
-- NuGet package restore enabled for the solution.
-
-For a non-interactive Release build, run:
+<details>
+<summary><strong>Reproduce the release-contract checks</strong></summary>
 
 ```powershell
-.\build.bat /s
+pwsh -NoProfile -File .\scripts\validate-release-contract.ps1 -SelfTest
+pwsh -NoProfile -File .\scripts\test-release-assets.ps1
+pwsh -NoProfile -File .\scripts\count-lines.ps1
 ```
 
-The script restores required packages and builds the primary Release executable. To build the unsigned installer from that executable, run:
+The first command validates the hand-written job/dependency inventory and proves eight deliberate workflow defects turn the check red. The second proves eleven missing or corrupt Squirrel asset cases turn red. The line counter requires exact committed tracked bytes and reports source, tests, styles/markup, tooling, excluded areas, grand totals, and surviving-line attribution.
 
-```powershell
-.\build-installer.bat /s
-```
+</details>
 
-`build-installer.bat` calls `build.bat`, installs the canonical Inno Setup package through `winget` when it is missing, and uses `packaging/WindowsServerTools.iss`. It writes `WindowsServerTools-Setup-<commit>.exe` below `Windows-Server-Tools/Windows-Server-Tools/bin/Installer`, requires the result to report `NotSigned`, and prints its size, SHA-256 digest, and source commit. The script builds locally; publication and release verification are separate steps.
+<details>
+<summary><strong>Large Exchange installation media boundary</strong></summary>
 
-From a Developer PowerShell prompt:
+The repository tracks only Cheap LFS pointer metadata for the Exchange ISO. The build and release workflow does not hydrate, copy, upload, or attach the multi-gigabyte ISO, and it never uses standard Git LFS. Runtime download/reassembly must validate every compressed part and the final ISO before the application offers the media to an installation stage.
 
-```powershell
-msbuild .\Windows-Server-Tools\Windows-Server-Tools.sln /t:Restore /p:RestorePackagesConfig=true
-msbuild .\Windows-Server-Tools\Windows-Server-Tools\Windows-Server-Tools.csproj /t:Build /p:Configuration=Release /p:Platform="Any CPU"
-```
+</details>
 
-The expected primary output is:
+<details>
+<summary><strong>Dim-sum release code name</strong></summary>
 
-```text
-Windows-Server-Tools\Windows-Server-Tools\bin\Release\Windows-Server-Tools.exe
-```
+The release workflow resolves an unused dish only from the public `Ding-Ding-Projects/dim-sum-photos` catalog and verifies that the photo is present in a published `catalog-v1*` release. Release notes link to that public photo. They do not download, vendor, copy, or attach it to this repository's release. Catalog unavailability never blocks publication; the release ships without a code name instead of reusing or inventing one.
 
-The complete solution also contains legacy and supporting projects with their own runtime and packaging requirements. The current reliability evidence covers the primary WPF application and the focused recovery executable; it does not claim a complete release build of every solution project.
+</details>
