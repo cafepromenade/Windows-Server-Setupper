@@ -63,8 +63,15 @@ for (const name of ['package.json', 'package-lock.json']) {
         }
         $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 
-        & $npmPath run package 2>&1 | Tee-Object -LiteralPath $packageLog
-        $packageExit = $LASTEXITCODE
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            & $npmPath run package 2>&1 | Tee-Object -LiteralPath $packageLog
+            $packageExit = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
         if ($packageExit -ne 0) { throw "Exchange Squirrel.Windows packaging failed with exit code $packageExit." }
     }
     finally {
