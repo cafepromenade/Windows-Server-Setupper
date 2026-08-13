@@ -82,6 +82,9 @@ for (const name of ['package.json', 'package-lock.json']) {
     if ($packageLogText -match '(?im)\bsigntool(?:\.exe)?\b|\bsigning\s+(?:file|executable|artifact)\b|\bcertificate\s+(?:subject|thumbprint|discovery)\b') {
         throw 'The Exchange packager log indicates a signer, signtool, certificate, or signing invocation.'
     }
+    if ($packageLogText -match '(?im)default Electron icon is used|application icon is not set') {
+        throw 'The Exchange packager used the default Electron icon; a committed project icon must be embedded before release.'
+    }
 
     $stagedDist = Join-Path $stagedRoot 'dist'
     $stagedSquirrel = Join-Path $stagedDist 'squirrel-windows'

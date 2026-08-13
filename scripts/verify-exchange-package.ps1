@@ -29,7 +29,7 @@ if ($setups.Count -ne 1) { throw "Expected exactly one Squirrel setup executable
 if ($fullPackages.Count -ne 1) { throw "Expected exactly one full Squirrel package; found $($fullPackages.Count)." }
 if ($setups[0].Length -lt 102400) { throw "Squirrel setup is unexpectedly small: $($setups[0].Length) bytes." }
 
-$unpackedExecutables = @(Get-ChildItem -LiteralPath $unpackedRoot -File -Filter '*.exe' | Where-Object { $_.Name -notmatch '(?i)(elevate|squirrel|update)' })
+$unpackedExecutables = @(Get-ChildItem -LiteralPath $unpackedRoot -File -Filter '*.exe' | Where-Object { $_.Name -notmatch '(?i)(elevate|squirrel|update|_ExecutionStub\.exe$)' })
 if ($unpackedExecutables.Count -ne 1) { throw "Expected exactly one unpacked application executable; found $($unpackedExecutables.Count)." }
 $appAsar = Join-Path $unpackedRoot 'resources\app.asar'
 if (-not (Test-Path -LiteralPath $appAsar -PathType Leaf)) { throw 'The unpacked Exchange application is missing resources/app.asar.' }
@@ -72,7 +72,7 @@ $result = [ordered]@{
     setup = $setups[0].Name
     unpackedExecutable = $unpackedExecutables[0].Name
     fullPackage = $fullPackages[0].Name
-    deltaPackages = @($deltaPackages.Name)
+    deltaPackages = @($deltaPackages | ForEach-Object { $_.Name })
     releaseIndex = $indexEntries
     artifacts = @($artifactRows)
 }
