@@ -34,8 +34,10 @@ try {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $stagedRoot $_.Name) -Recurse -Force
     }
 
-    $env:WST_STAGED_VERSION = $Version
-    $versionScript = @'
+    Push-Location $stagedRoot
+    try {
+        $env:WST_STAGED_VERSION = $Version
+        $versionScript = @'
 const fs = require('node:fs');
 for (const name of ['package.json', 'package-lock.json']) {
   const value = JSON.parse(fs.readFileSync(name, 'utf8'));
@@ -46,11 +48,9 @@ for (const name of ['package.json', 'package-lock.json']) {
   fs.writeFileSync(name, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 '@
-    & $nodePath -e $versionScript
-    if ($LASTEXITCODE -ne 0) { throw 'Could not apply the task-owned package version in the isolated staging copy.' }
+        & $nodePath -e $versionScript
+        if ($LASTEXITCODE -ne 0) { throw 'Could not apply the task-owned package version in the isolated staging copy.' }
 
-    Push-Location $stagedRoot
-    try {
         & $npmPath ci --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw "npm ci failed in the isolated Exchange package copy with exit code $LASTEXITCODE." }
 
