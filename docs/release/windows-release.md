@@ -62,7 +62,7 @@ The always-on collector copies only explicit generated evidence, installers, upd
 
 The Exchange ISO remains behind the repository's Cheap LFS pointer/side-asset route. The release workflow does not hydrate or attach it and never invokes standard Git LFS. The separately owned pointer verifier must prove the compressed part inventory before runtime download work can be called complete.
 
-Dim-sum release decoration comes only from the public catalog. The workflow resolves an unused bilingual dish name and confirms its public `catalog-v1*` photo URL. It links the photo in release notes without downloading or attaching a copy. If no unused published photo can be resolved, the release ships without a code name.
+Dim-sum release decoration comes only from the public catalog. The workflow seeds its catalog scan from the unique workflow run number so concurrent runs begin at different dishes, then rejects every name already present in project release history and confirms the selected `catalog-v1*` photo URL. It links the photo in release notes without downloading or attaching a copy. If no unused published photo can be resolved, the release ships without a code name.
 
 ## Verification and failure modes
 

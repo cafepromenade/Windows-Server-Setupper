@@ -90,6 +90,7 @@ jobs:
           ./scripts/resolve-dim-sum.ps1
           -Repository "$env:GITHUB_REPOSITORY"
           -OutputPath release-evidence/dim-sum.json
+          -Seed $env:GITHUB_RUN_NUMBER
 
       - name: Assemble allowlisted release assets and evidence
         shell: pwsh
