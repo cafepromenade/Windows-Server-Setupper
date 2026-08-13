@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 
-function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$PublishScript, [string]$BuildScript, [string]$InstallerScript) {
+function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$PublishScript, [string]$BuildScript, [string]$InstallerScript, [string]$ExchangePackageScript) {
     $requiredWorkflowPatterns = [ordered]@{
         'push branch trigger' = '(?m)^\s{2}push:\s*$'
         'workflow dispatch trigger' = '(?m)^\s{2}workflow_dispatch:\s*$'
@@ -75,6 +75,9 @@ function Assert-ReleaseContract([string]$Workflow, [object]$Inventory, [string]$
     foreach ($needle in @('gh release create', 'gh release edit', 'gh release download', 'published_at', 'Workflow duration')) {
         if (-not $PublishScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "Release publisher is missing required proof: $needle" }
     }
+    foreach ($needle in @('default Electron icon is used', 'application icon is not set', 'CSC_IDENTITY_AUTO_DISCOVERY', 'package.log')) {
+        if (-not $ExchangePackageScript.Contains($needle, [StringComparison]::OrdinalIgnoreCase)) { throw "Exchange package helper is missing required icon/signing-log proof: $needle" }
+    }
 }
 
 $workflowFullPath = [IO.Path]::GetFullPath((Join-Path $repoRoot $WorkflowPath))
@@ -84,25 +87,27 @@ $inventory = Get-Content -LiteralPath $inventoryFullPath -Raw | ConvertFrom-Json
 $publish = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'publish-release.ps1') -Raw
 $build = Get-Content -LiteralPath (Join-Path $repoRoot 'build.bat') -Raw
 $installer = Get-Content -LiteralPath (Join-Path $repoRoot 'build-installer.bat') -Raw
+$exchangePackage = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'package-exchange.ps1') -Raw
 
-Assert-ReleaseContract $workflow $inventory $publish $build $installer
+Assert-ReleaseContract $workflow $inventory $publish $build $installer $exchangePackage
 Write-Output 'PASS: release workflow and dependency inventory contract'
 
 if ($SelfTest) {
     $mutations = [ordered]@{
-        'missing workflow_dispatch' = @{ workflow = $workflow -replace '(?m)^\s{2}workflow_dispatch:\s*\r?\n', ''; publish = $publish; build = $build; installer = $installer }
-        'wrong runner' = @{ workflow = $workflow -replace 'runs-on: windows-2025', 'runs-on: ubuntu-latest'; publish = $publish; build = $build; installer = $installer }
-        'missing root installer build' = @{ workflow = $workflow -replace '(?m)^\s{8}run:\s+build-installer\.bat /s\s*\r?\n', ''; publish = $publish; build = $build; installer = $installer }
-        'prohibited test command' = @{ workflow = $workflow + "`n      - name: Unit tests`n        run: npm test`n"; publish = $publish; build = $build; installer = $installer }
-        'missing always evidence boundary' = @{ workflow = $workflow -replace '\$\{\{ always\(\) \}\}', '${{ success() }}'; publish = $publish; build = $build; installer = $installer }
-        'mutable action tag' = @{ workflow = $workflow -replace 'actions/upload-artifact@[0-9a-f]{40}', 'actions/upload-artifact@v4'; publish = $publish; build = $build; installer = $installer }
-        'missing release download proof' = @{ workflow = $workflow; publish = $publish -replace 'gh release download', 'gh release inspect'; build = $build; installer = $installer }
-        'missing Exchange package verifier' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace 'verify-exchange-package\.ps1', 'missing-verifier.ps1' }
+        'missing workflow_dispatch' = @{ workflow = $workflow -replace '(?m)^\s{2}workflow_dispatch:\s*\r?\n', ''; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'wrong runner' = @{ workflow = $workflow -replace 'runs-on: windows-2025', 'runs-on: ubuntu-latest'; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'missing root installer build' = @{ workflow = $workflow -replace '(?m)^\s{8}run:\s+build-installer\.bat /s\s*\r?\n', ''; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'prohibited test command' = @{ workflow = $workflow + "`n      - name: Unit tests`n        run: npm test`n"; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'missing always evidence boundary' = @{ workflow = $workflow -replace '\$\{\{ always\(\) \}\}', '${{ success() }}'; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'mutable action tag' = @{ workflow = $workflow -replace 'actions/upload-artifact@[0-9a-f]{40}', 'actions/upload-artifact@v4'; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'missing release download proof' = @{ workflow = $workflow; publish = $publish -replace 'gh release download', 'gh release inspect'; build = $build; installer = $installer; exchangePackage = $exchangePackage }
+        'missing Exchange package verifier' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer -replace 'verify-exchange-package\.ps1', 'missing-verifier.ps1'; exchangePackage = $exchangePackage }
+        'missing default-icon rejection' = @{ workflow = $workflow; publish = $publish; build = $build; installer = $installer; exchangePackage = $exchangePackage -replace 'default Electron icon is used', 'default icon accepted' }
     }
     $red = 0
     foreach ($entry in $mutations.GetEnumerator()) {
         try {
-            Assert-ReleaseContract $entry.Value.workflow $inventory $entry.Value.publish $entry.Value.build $entry.Value.installer
+            Assert-ReleaseContract $entry.Value.workflow $inventory $entry.Value.publish $entry.Value.build $entry.Value.installer $entry.Value.exchangePackage
         }
         catch {
             $red++
