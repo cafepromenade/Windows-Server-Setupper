@@ -47,8 +47,19 @@ try {
     function Get-ByteLineCounts([string]$LiteralPath) {
         $bytes = [IO.File]::ReadAllBytes($LiteralPath)
         if ($bytes.Length -eq 0) { return @{ total = 0; nonBlank = 0 } }
-        if ($bytes -contains 0) { throw "A counted text extension contains NUL bytes: $LiteralPath" }
-        $text = [Text.Encoding]::UTF8.GetString($bytes)
+        if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
+            $text = [Text.Encoding]::Unicode.GetString($bytes, 2, $bytes.Length - 2)
+        }
+        elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) {
+            $text = [Text.Encoding]::BigEndianUnicode.GetString($bytes, 2, $bytes.Length - 2)
+        }
+        elseif ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            $text = [Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
+        }
+        else {
+            if ($bytes -contains 0) { throw "A counted text extension has NUL bytes without a recognized UTF BOM: $LiteralPath" }
+            $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+        }
         $lines = [regex]::Split($text, '\r\n|\n|\r')
         if ($text -match '(\r\n|\n|\r)$') {
             $lines = $lines[0..([Math]::Max(0, $lines.Count - 2))]
