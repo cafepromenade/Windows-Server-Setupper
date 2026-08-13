@@ -60,7 +60,7 @@ try {
             if ($bytes -contains 0) { throw "A counted text extension has NUL bytes without a recognized UTF BOM: $LiteralPath" }
             $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes)
         }
-        $lines = @($text -split "`n", -1)
+        $lines = @([regex]::Split($text, "`n"))
         if ($text.EndsWith("`n", [StringComparison]::Ordinal)) {
             $lines = $lines[0..([Math]::Max(0, $lines.Count - 2))]
             if ($text -ceq "`n" -or $text -ceq "`r`n") { $lines = @('') }
