@@ -1526,6 +1526,19 @@ namespace Windows_Server_Tools.Tests
             Check(secondaryWindow.Contains("if (-not $installResult.Success)")
                 && secondaryWindow.Contains("$notInstalled"),
                 "feature installation should reject an unsuccessful command result and verify every requested feature");
+            Check(secondaryXaml.Contains("HorizontalScrollBarVisibility=\"Disabled\"")
+                && secondaryXaml.Contains("<StackPanel Margin=\"16\" MaxWidth=\"720\">")
+                && !secondaryXaml.Contains("MinWidth=\"520\"")
+                && !secondaryXaml.Contains("Height=\"29\""),
+                "the secondary surface should reflow without a fixed-width canvas, tiny actions, or page-level horizontal scrolling");
+            Check(secondaryXaml.Contains("AutomationProperties.Name=\"Commonly installed server features heading\"")
+                && secondaryXaml.Contains("KeyboardNavigation.TabNavigation=\"Continue\"")
+                && secondaryXaml.Split(new[] { "MinHeight=\"44\"" }, StringSplitOptions.None).Length - 1 >= 7,
+                "the secondary surface should expose a named heading, continuous keyboard order, and 44-pixel actions");
+            Check(secondaryXaml.Contains("Loaded=\"Window_Loaded\"")
+                && secondaryWindow.Contains("private void Window_Loaded")
+                && secondaryWindow.Contains("IIS.Focus()"),
+                "the secondary window should establish a deterministic first keyboard focus when it opens");
         }
 
         private static void ChecksWpfDependencyContracts()

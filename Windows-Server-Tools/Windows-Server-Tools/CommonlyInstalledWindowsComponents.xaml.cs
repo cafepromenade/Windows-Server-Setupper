@@ -69,6 +69,14 @@ namespace Windows_Server_Tools
             base.OnClosed(e);
         }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (IIS.IsVisible && IIS.IsEnabled && !IsKeyboardFocusWithin)
+            {
+                IIS.Focus();
+            }
+        }
+
         private void ServerMutationCoordinator_StateChanged()
         {
             if (!Dispatcher.CheckAccess())
