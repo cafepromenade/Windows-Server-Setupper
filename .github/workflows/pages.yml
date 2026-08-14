@@ -1,0 +1,94 @@
+name: Deploy documentation site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs-site/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: documentation-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build GitHub Pages artifact
+    runs-on: windows-2025
+    steps:
+      - name: Check out the documentation source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install the declared Node.js runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Build the documentation site without tests
+        shell: cmd
+        run: call docs-site\build.bat /ci
+
+      - name: Assert the GitHub Pages publication contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $PWD 'docs-site/pages-dist'
+          $requiredFiles = @('.nojekyll', 'index.html', '404.html', 'pages-build.json', 'sw.js')
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $output $file
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Required GitHub Pages file is missing: $path"
+            }
+          }
+          $assets = Join-Path $output 'assets'
+          if (-not (Test-Path -LiteralPath $assets -PathType Container)) {
+            throw "Required GitHub Pages assets directory is missing: $assets"
+          }
+          $contract = Get-Content -LiteralPath (Join-Path $output 'pages-build.json') -Raw | ConvertFrom-Json
+          if ($contract.basePath -ne '/Windows-Server-Setupper') {
+            throw "GitHub Pages base path must be /Windows-Server-Setupper; received '$($contract.basePath)'"
+          }
+          $html = Get-Content -LiteralPath (Join-Path $output 'index.html') -Raw
+          if ($html -notlike '*<base href="/Windows-Server-Setupper/"/>*') {
+            throw 'GitHub Pages HTML does not declare the required repository base path.'
+          }
+
+      - name: Upload the GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/pages-dist
+
+      - name: Collect safe static output
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: documentation-pages-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: docs-site/pages-dist
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  deploy:
+    name: Deploy GitHub Pages artifact
+    needs: build
+    runs-on: windows-2025
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
