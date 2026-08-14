@@ -114,7 +114,7 @@ if not "!CLEAN_INTERMEDIATE_EXIT!"=="0" (
     popd >nul
     exit /b !CLEAN_INTERMEDIATE_EXIT!
 )
-"%MSBUILD%" "%PROJECT%" /t:Build /m /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="%PROJECT_PLATFORM%" /p:FrameworkPathOverride="%FRAMEWORK_PATH%"
+"%MSBUILD%" "%PROJECT%" /t:Build /m:1 /nodeReuse:false /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="%PROJECT_PLATFORM%" /p:FrameworkPathOverride="%FRAMEWORK_PATH%"
 set "WPF_BUILD_EXIT=!ERRORLEVEL!"
 if not "!WPF_BUILD_EXIT!"=="0" (
     call :restore_known_build_byproducts
