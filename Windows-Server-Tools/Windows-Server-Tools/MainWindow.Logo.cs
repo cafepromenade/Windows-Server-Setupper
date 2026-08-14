@@ -65,6 +65,7 @@ namespace Windows_Server_Tools
         {
             System.Windows.Media.ImageSource source = _logoService.LoadPresentationSource(_logoSettings);
             AppLogoImage.Source = source;
+            TitleBarLogoImage.Source = source;
             LogoPreviewImage.Source = source;
         }
 

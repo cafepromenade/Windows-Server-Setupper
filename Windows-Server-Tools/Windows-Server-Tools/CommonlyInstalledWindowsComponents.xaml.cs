@@ -53,7 +53,9 @@ namespace Windows_Server_Tools
             try
             {
                 LogoService logoService = LogoService.CreateDefault();
-                AppLogoImage.Source = logoService.LoadPresentationSource(logoService.LoadSettings());
+                ImageSource source = logoService.LoadPresentationSource(logoService.LoadSettings());
+                AppLogoImage.Source = source;
+                TitleBarLogoImage.Source = source;
             }
             catch (Exception ex) when (!RecoveryRunner.IsFatal(ex))
             {

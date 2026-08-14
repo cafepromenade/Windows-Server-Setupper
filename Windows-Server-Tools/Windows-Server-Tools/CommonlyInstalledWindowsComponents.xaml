@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Windows_Server_Tools"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="Commonly installed Windows components"
         Icon="Assets/windows-server-setupper.ico"
@@ -11,10 +12,57 @@
         Width="800"
         MinHeight="260"
         MinWidth="340"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Background="#FFFFF7FF"
         Loaded="Window_Loaded"
         KeyboardNavigation.TabNavigation="Continue"
         PreviewKeyDown="Window_PreviewKeyDown">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="48"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0"
+                Background="#FF21005D"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="44"/>
+                    <ColumnDefinition Width="44"/>
+                    <ColumnDefinition Width="44"/>
+                </Grid.ColumnDefinitions>
+                <Image x:Name="TitleBarLogoImage"
+                       Grid.Column="0"
+                       Width="32"
+                       Height="32"
+                       Margin="10,8"
+                       Stretch="Uniform"
+                       IsHitTestVisible="False"
+                       AutomationProperties.Name="Current application logo"/>
+                <TextBlock Grid.Column="1"
+                           Text="Commonly installed server features"
+                           Foreground="White"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           IsHitTestVisible="False"/>
+                <Button Grid.Column="2" MinWidth="44" MinHeight="44" Content="—" Foreground="White" Background="Transparent" BorderThickness="0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Minimize window" Click="MinimizeWindowButton_Click"/>
+                <Button Grid.Column="3" MinWidth="44" MinHeight="44" Content="□" Foreground="White" Background="Transparent" BorderThickness="0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Maximize or restore window" Click="MaximizeRestoreWindowButton_Click"/>
+                <Button Grid.Column="4" MinWidth="44" MinHeight="44" Content="×" Foreground="White" Background="Transparent" BorderThickness="0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="Close window" Click="CloseWindowButton_Click"/>
+            </Grid>
+        </Border>
+        <Grid Grid.Row="1">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto"
                       KeyboardNavigation.TabNavigation="Continue">
@@ -165,5 +213,6 @@
                        TextWrapping="Wrap"/>
         </Button>
 
+        </Grid>
     </Grid>
 </Window>
