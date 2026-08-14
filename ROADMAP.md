@@ -1,33 +1,31 @@
 # Roadmap
 
-## Current milestone: combined Windows release contract
+## Current milestone: prove and publish the combined Windows release
 
-The repository now defines one Windows-only delivery route for both the WPF application and the Exchange Auto Installer:
+The current source describes two complementary Windows applications and their delivery routes:
 
-- `build.bat` bootstraps and builds both runnable applications from exact committed source;
-- `build-installer.bat` produces the WPF Inno Setup installer and complete Exchange Squirrel.Windows setup/update set;
-- `.github/workflows/windows-release.yml` runs on every branch push and manual dispatch, then publishes one unique non-draft release only after build, packaging, evidence assembly, and asset validation succeed;
-- `scripts/release-dependencies.json` is the hand-written job/bootstrap inventory;
-- `scripts/count-lines.ps1` produces release-pinned category and surviving-line attribution tables;
-- safe output collection runs even after an earlier step fails, without uploading source, dependencies, caches, credentials, or the Exchange ISO.
+- the resilient WPF server-setup application with recovery-oriented state handling;
+- the mostly pre-filled, staged Exchange Auto Installer;
+- Cheap LFS metadata verification and explicit ISO hydration for Exchange media, with no standard Git LFS route;
+- optional managed OpenCode repair with an explicit, off-by-default YOLO mode constrained to the application's repair catalog;
+- unsigned WPF/Inno Setup and Exchange/Squirrel.Windows artifact routes; and
+- a documentation-site build route that creates `docs-site/dist` for Sites and `docs-site/pages-dist` for GitHub Pages.
 
-The workflow performs no tests, lint, type checking, static analysis, accessibility checks, or screenshots. Local checks remain required work for each change, but their verdict is not a GitHub Actions release gate.
+These are source and documentation records, not final-release evidence. No final combined release, installer asset, GitHub Actions result, GitHub Pages deployment, installation result, or capture is claimed here.
 
-## Release evidence still required
+## Before final publication
 
-- Run both root scripts from the final committed candidate and record their exact output.
-- Verify both installers, the Squirrel.Windows update set, and every digest from the final candidate.
-- Push the integrated default branch and observe a terminal GitHub Actions result.
-- Read back the unique non-draft release, target commit, notes, timings, and every downloadable asset.
-- Resolve the separately owned Cheap LFS pointer metadata correction without hydrating or attaching the ISO.
-- Confirm original application logos and packaged multi-resolution Windows icons in the app/package owners' lanes.
-- Capture the real packaged user interfaces through the approved hidden-desktop route; no current capture claim is made by this release-contract lane.
+1. Select and integrate the exact final source revision without rewriting existing history.
+2. Run the supported build and installer routes from that revision and record the actual unsigned WPF/Inno Setup and Exchange/Squirrel.Windows outputs.
+3. Publish the exact source revision through the configured Windows release route, then read back the resulting non-draft release, target revision, artifacts, hashes, and downloadability.
+4. Build the documentation site through `docs-site/build.bat /ci` and publish the matching `pages-dist` export only through a configured GitHub Pages publisher. Record the final URL only after publication and read-back verification.
+5. Keep the Exchange ISO outside release assets and Git history. The runtime media flow must validate the Cheap LFS part inventory and final ISO before use.
 
-## Reliability and Exchange follow-up
+## Safety and evidence boundaries
 
-- Exercise the recovery flows on a disposable Windows Server environment, including reboot continuation, role installation, network failure, timeout, indeterminate reconciliation, and cleanup-only retry.
-- Verify the Exchange install plan against supported Windows Server and Exchange media in an isolated environment.
-- Keep the large media flow resumable, cancellable, bounded, and cryptographically verified from Cheap LFS part metadata through the final ISO.
-- Keep all credential and secret material out of source, process arguments, build logs, release evidence, and Git history.
+- Both artifact families are intentionally unsigned. Unknown-publisher and SmartScreen warnings are expected; no release record may claim a signing result.
+- The Exchange installer must not pre-fill credentials. Its OpenCode repair path remains managed and bounded; YOLO mode must remain opt-in and confined to fixed repair actions.
+- The GitHub Actions release workflow is designed to build and publish rather than run tests or lint. Any local test, lint, review, audit, runtime, or UI-capture evidence must identify its exact source revision and must not be inferred from this roadmap.
+- An earlier recovery-only WPF release and any historical local checks remain historical records, not proof of the pending combined final release.
 
-No combined release, remote workflow result, installation result, or deployment is claimed by this roadmap until its external evidence exists.
+See [release documentation](./docs/release/README.md) for the delivery contract and [HANDOFF.md](./HANDOFF.md) for the next owner actions.

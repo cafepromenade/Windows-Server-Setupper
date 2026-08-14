@@ -1,5 +1,8 @@
 # Windows release contract
 
+> [!IMPORTANT]
+> This document defines the intended combined Windows release route. It does not assert that the pending final source revision has been built, packaged, uploaded, installed, captured, or published. Any previous recovery-only release or historical check remains separate evidence.
+
 ## Trigger and job model
 
 `.github/workflows/windows-release.yml` runs for every branch push and `workflow_dispatch`. A branch filter excludes tag-only events, so the release tag created by the job cannot trigger another release run.
@@ -63,6 +66,12 @@ The always-on collector copies only explicit generated evidence, installers, upd
 The Exchange ISO remains behind the repository's Cheap LFS pointer/side-asset route. The release workflow does not hydrate or attach it and never invokes standard Git LFS. The separately owned pointer verifier must prove the compressed part inventory before runtime download work can be called complete.
 
 Dim-sum release decoration comes only from the public catalog. The workflow seeds its catalog scan from the unique workflow run number so concurrent runs begin at different dishes, then rejects every name already present in project release history and confirms the selected `catalog-v1*` photo URL. It links the photo in release notes without downloading or attaching a copy. If no unused published photo can be resolved, the release ships without a code name.
+
+## Documentation-site build route
+
+The documentation site has a separate build-only route at `docs-site/build.bat /ci`. It restores the site's locked dependencies, builds the Cloudflare Worker-compatible Sites output at `docs-site/dist`, and exports the same site for GitHub Pages at `docs-site/pages-dist` with the `/Windows-Server-Setupper/` base path. The `/ci` (or `--no-tests`) mode intentionally skips only the site's focused `node --test` step.
+
+This route prepares publication output; it is not evidence that a GitHub Pages publisher has run. No GitHub Pages URL, Sites URL, final download URL, or deployment result may be inferred from its presence. A publisher must upload the exact `pages-dist` export at the matching base path and then record the live URL only after read-back verification.
 
 ## Verification and failure modes
 
