@@ -52,7 +52,7 @@ jobs:
               throw "Required GitHub Pages file is missing: $path"
             }
           }
-          $assets = Join-Path $output 'assets'
+          $assets = Join-Path $output '_next/static'
           if (-not (Test-Path -LiteralPath $assets -PathType Container)) {
             throw "Required GitHub Pages assets directory is missing: $assets"
           }
