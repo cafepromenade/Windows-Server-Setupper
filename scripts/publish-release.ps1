@@ -12,6 +12,20 @@ Set-StrictMode -Version Latest
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $stagingRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot $StagingDirectory))
 $startPath = [IO.Path]::GetFullPath((Join-Path $repoRoot $JobStartFile))
+
+function Get-LowercaseSha256([string]$Path) {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $sha256.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha256.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 if (-not (Test-Path -LiteralPath $stagingRoot -PathType Container)) { throw "Release staging is missing: $stagingRoot" }
 if (-not (Test-Path -LiteralPath $startPath -PathType Leaf)) { throw "Job start evidence is missing: $startPath" }
 
@@ -125,8 +139,8 @@ try {
         $name = [IO.Path]::GetFileName($asset)
         $downloaded = Join-Path $verifyRoot $name
         if (-not (Test-Path -LiteralPath $downloaded -PathType Leaf)) { throw "Downloaded release is missing $name." }
-        $expectedHash = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash
-        $actualHash = (Get-FileHash -LiteralPath $downloaded -Algorithm SHA256).Hash
+        $expectedHash = Get-LowercaseSha256 -Path $asset
+        $actualHash = Get-LowercaseSha256 -Path $downloaded
         if ($expectedHash -cne $actualHash) { throw "Downloaded release asset hash mismatch: $name" }
     }
 }

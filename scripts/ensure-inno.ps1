@@ -11,6 +11,19 @@ $installerUri = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/
 $installerSha256 = '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732'
 $installRoot = [IO.Path]::GetFullPath((Join-Path $ToolchainRoot "inno-setup-$version"))
 
+function Get-LowercaseSha256([string]$Path) {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $sha256.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha256.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 function Find-CompatibleCompiler {
     $candidates = @(
         (Join-Path $installRoot 'ISCC.exe'),
@@ -56,7 +69,7 @@ $installerPath = Join-Path $scratch 'innosetup.exe'
 New-Item -ItemType Directory -Path $scratch -Force | Out-Null
 try {
     Invoke-WebRequest -UseBasicParsing -Uri $installerUri -OutFile $installerPath
-    $actualSha256 = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualSha256 = Get-LowercaseSha256 -Path $installerPath
     if ($actualSha256 -cne $installerSha256) {
         throw "Inno Setup $version SHA-256 mismatch from $installerUri."
     }

@@ -17,6 +17,19 @@ $components = @(
     'Microsoft.Net.Component.4.7.2.SDK'
 )
 
+function Get-LowercaseSha256([string]$Path) {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $sha256.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha256.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 function Find-CompatibleMsBuild {
     $localCandidate = Join-Path $installRoot 'MSBuild\Current\Bin\MSBuild.exe'
     if (Test-Path -LiteralPath $localCandidate -PathType Leaf) { return [IO.Path]::GetFullPath($localCandidate) }
@@ -75,7 +88,7 @@ $installerPath = Join-Path $scratch 'vs_BuildTools.exe'
 New-Item -ItemType Directory -Path $scratch -Force | Out-Null
 try {
     Invoke-WebRequest -UseBasicParsing -Uri $installerUri -OutFile $installerPath
-    $actualSha256 = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualSha256 = Get-LowercaseSha256 -Path $installerPath
     if ($actualSha256 -cne $installerSha256) {
         throw "Microsoft Build Tools $version SHA-256 mismatch from $installerUri."
     }
