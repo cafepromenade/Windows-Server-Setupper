@@ -6,6 +6,19 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function Get-LowercaseSha256([string]$Path) {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $sha256.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha256.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 if ([string]::IsNullOrWhiteSpace($VersionFile)) {
     $VersionFile = Join-Path (Split-Path -Parent $PSScriptRoot) '.node-version'
 }
@@ -61,7 +74,7 @@ try {
         throw "The official checksum list does not contain $archiveName."
     }
     $expected = ($checksumLine -split '\s+')[0].ToLowerInvariant()
-    $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actual = Get-LowercaseSha256 -Path $archive
     if ($actual -cne $expected) {
         throw "Node.js archive SHA-256 mismatch for $archiveName."
     }

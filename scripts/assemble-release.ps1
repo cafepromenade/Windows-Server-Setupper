@@ -10,6 +10,20 @@ Set-StrictMode -Version Latest
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot $EvidenceDirectory))
 $stagingRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot $StagingDirectory))
+
+function Get-LowercaseSha256([string]$Path) {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $sha256.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha256.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 if (-not $stagingRoot.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Release staging must remain inside the repository checkout: $stagingRoot"
 }
@@ -71,7 +85,7 @@ foreach ($artifact in $releaseArtifacts) {
         role = $artifact.role
         name = $item.Name
         bytes = $item.Length
-        sha256 = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-LowercaseSha256 -Path $item.FullName
         unsigned = $item.Extension -ieq '.exe'
     }
 }
@@ -113,7 +127,7 @@ $manifest = [ordered]@{
 $hashLines = @()
 foreach ($file in Get-ChildItem -LiteralPath $stagingRoot -File | Sort-Object Name) {
     if ($file.Name -eq 'SHA256SUMS.txt') { continue }
-    $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    $hash = Get-LowercaseSha256 -Path $file.FullName
     $hashLines += "$hash  $($file.Name)"
 }
 [IO.File]::WriteAllLines((Join-Path $stagingRoot 'SHA256SUMS.txt'), $hashLines, [Text.UTF8Encoding]::new($false))
