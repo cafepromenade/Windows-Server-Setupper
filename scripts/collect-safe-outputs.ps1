@@ -44,7 +44,7 @@ foreach ($relative in $safeDirectories) {
 }
 
 $knownArtifacts = @(
-    (Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Windows-Server-Tools\Windows-Server-Tools\bin\Installer') -File -ErrorAction SilentlyContinue),
+    (Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Windows-Server-Tools\Windows-Server-Tools\bin\Installer') -File -ErrorAction SilentlyContinue)
     (Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Windows-Server-Tools\Exchange-Auto-Installer\dist\squirrel-windows') -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.exe', '.nupkg') -or $_.Name -eq 'RELEASES' })
 ) | Where-Object { $_ }
 if ($knownArtifacts.Count -gt 0) {
