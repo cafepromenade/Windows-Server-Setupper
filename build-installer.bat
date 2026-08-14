@@ -78,15 +78,15 @@ if "!CANDIDATE_BUILD_EXIT!"=="0" (
     set "BUILD_EXIT=!ERRORLEVEL!"
     if not "!BUILD_EXIT!"=="0" (
         echo ERROR: The Release application build failed with exit code !BUILD_EXIT!; no installer was created.
-        popd >nul
-        exit /b !BUILD_EXIT!
+        set "SCRIPT_EXIT=!BUILD_EXIT!"
+        goto :return_nested_build_failure
     )
     call :validate_candidate_build
     set "CANDIDATE_BUILD_EXIT=!ERRORLEVEL!"
     if not "!CANDIDATE_BUILD_EXIT!"=="0" (
         echo ERROR: The Release build did not produce commit-exact executable provenance.
-        popd >nul
-        exit /b !CANDIDATE_BUILD_EXIT!
+        set "SCRIPT_EXIT=!CANDIDATE_BUILD_EXIT!"
+        goto :return_nested_build_failure
     )
 )
 
@@ -211,6 +211,10 @@ echo This project intentionally does not code-sign any release artifact.
 
 popd >nul
 exit /b 0
+
+:return_nested_build_failure
+popd >nul
+endlocal & exit /b %SCRIPT_EXIT%
 
 :find_iscc
 set "ISCC="
