@@ -39,6 +39,12 @@ npm run export:pages -- --base-path /Windows-Server-Setupper
 
 It must run after `npm run build`. The export writes `index.html`, `404.html`, `.nojekyll`, the client assets, the shipped logo, service worker, and a machine-readable `pages-build.json` contract. The Pages publisher must upload exactly `docs-site/pages-dist` and serve it at the matching base path. Sites publication continues to package `docs-site/dist`; neither output replaces the other.
 
+## GitHub Pages deployment
+
+`.github/workflows/pages.yml` deploys the static documentation artifact after a change to `docs-site` or that workflow reaches `main`, and it can also be started manually. The workflow installs the Node.js version declared in `.node-version`, runs `docs-site\build.bat /ci`, verifies the Pages artifact and `/Windows-Server-Setupper/` base path, uploads only `docs-site/pages-dist`, and deploys it through GitHub Pages.
+
+The `/ci` invocation deliberately skips tests. The workflow does not run tests, linting, or static analysis, and it does not create commits, tags, or releases. It does not run for tag activity, preventing release publication from recursively starting a Pages deployment.
+
 ## Verification
 
 ```powershell
