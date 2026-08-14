@@ -16,6 +16,21 @@ The script restores the locked dependencies, produces the Cloudflare Worker-comp
 build.bat /different-repository-name
 ```
 
+The default invocation above remains the local verification route and runs the focused tests. A GitHub Actions build or another build-only publisher must deliberately select the no-tests mode:
+
+```batch
+build.bat /ci
+```
+
+`--no-tests` is an equivalent explicit spelling. Either flag may be combined with a different repository base path in either order:
+
+```batch
+build.bat /ci /different-repository-name
+build.bat /different-repository-name --no-tests
+```
+
+Build-only mode still performs `npm ci`, the Cloudflare Worker-compatible Sites build, and the GitHub Pages export. It skips only `node --test`. This keeps automated publication compatible with the repository rule that GitHub Actions builds and publishes without running tests, while retaining the fuller local default.
+
 The static export command alone is:
 
 ```powershell
