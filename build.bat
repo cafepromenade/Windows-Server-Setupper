@@ -5,6 +5,7 @@ set "ROOT=%~dp0"
 set "SOLUTION=%ROOT%Windows-Server-Tools\Windows-Server-Tools.sln"
 set "PROJECT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\Windows-Server-Tools.csproj"
 set "PROJECT_OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release"
+set "PROJECT_INTERMEDIATE=%ROOT%Windows-Server-Tools\Windows-Server-Tools\obj\Release"
 set "OUTPUT=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\Windows-Server-Tools.exe"
 set "BUILD_COMMIT_FILE=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\source-commit.txt"
 set "BUILD_HASH_FILE=%ROOT%Windows-Server-Tools\Windows-Server-Tools\bin\Release\source-executable.sha256"
@@ -105,11 +106,21 @@ if errorlevel 1 (
 )
 
 echo [5/9] Building the primary WPF Release application...
+call :clean_primary_intermediate
+set "CLEAN_INTERMEDIATE_EXIT=!ERRORLEVEL!"
+if not "!CLEAN_INTERMEDIATE_EXIT!"=="0" (
+    echo ERROR: The validated primary Release intermediate directory could not be cleared.
+    call :restore_known_build_byproducts
+    popd >nul
+    exit /b !CLEAN_INTERMEDIATE_EXIT!
+)
 "%MSBUILD%" "%PROJECT%" /t:Build /m /nologo /verbosity:minimal /p:Configuration=Release /p:Platform="%PROJECT_PLATFORM%" /p:FrameworkPathOverride="%FRAMEWORK_PATH%"
-if errorlevel 1 (
+set "WPF_BUILD_EXIT=!ERRORLEVEL!"
+if not "!WPF_BUILD_EXIT!"=="0" (
+    call :restore_known_build_byproducts
     echo ERROR: Release build failed for "%PROJECT%".
     popd >nul
-    exit /b 1
+    exit /b !WPF_BUILD_EXIT!
 )
 
 echo [6/9] Verifying the primary runnable application...
@@ -281,6 +292,10 @@ exit /b 0
 
 :clean_primary_output
 powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=[IO.Path]::GetFullPath($env:ROOT); $target=[IO.Path]::GetFullPath($env:PROJECT_OUTPUT); if (-not $target.StartsWith($root,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($target) -cne 'Release') { throw ('Refusing to clear unexpected build output: '+$target); }; if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force; }"
+exit /b %ERRORLEVEL%
+
+:clean_primary_intermediate
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=[IO.Path]::GetFullPath($env:ROOT); $target=[IO.Path]::GetFullPath($env:PROJECT_INTERMEDIATE); $expectedParent=[IO.Path]::GetFullPath((Join-Path $root 'Windows-Server-Tools\Windows-Server-Tools\obj')); if (-not $target.StartsWith($root,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($target) -cne 'Release' -or [IO.Path]::GetFullPath((Split-Path -Parent $target)) -cne $expectedParent) { throw ('Refusing to clear unexpected build intermediate: '+$target); }; if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force; }"
 exit /b %ERRORLEVEL%
 
 :restore_known_build_byproducts
