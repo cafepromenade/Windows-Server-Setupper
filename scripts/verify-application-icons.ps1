@@ -6,15 +6,20 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 
+function ConvertTo-RepositoryRelativePath([string]$ResolvedPath, [string]$Label) {
+    $repoPrefix = $repoRoot + [IO.Path]::DirectorySeparatorChar
+    if (-not $ResolvedPath.StartsWith($repoPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Label icon escapes the repository: $ResolvedPath"
+    }
+    return $ResolvedPath.Substring($repoPrefix.Length).Replace('\', '/')
+}
+
 function Resolve-OwnedPath([string]$OwnerFile, [string]$RelativePath, [string]$Label) {
     if ([string]::IsNullOrWhiteSpace($RelativePath)) { throw "$Label does not declare an icon path." }
     if ([IO.Path]::IsPathRooted($RelativePath)) { throw "$Label icon path must be repository-relative, not absolute: $RelativePath" }
     $resolved = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $OwnerFile) $RelativePath))
-    if (-not $resolved.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "$Label icon escapes the repository: $resolved"
-    }
+    $relative = ConvertTo-RepositoryRelativePath $resolved $Label
     if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) { throw "$Label icon is missing: $resolved" }
-    $relative = [IO.Path]::GetRelativePath($repoRoot, $resolved).Replace('\', '/')
     & git -C $repoRoot ls-files --error-unmatch -- $relative *> $null
     if ($LASTEXITCODE -ne 0) { throw "$Label icon is not tracked by Git: $relative" }
     return $resolved
