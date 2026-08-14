@@ -1,7 +1,22 @@
 # Windows release contract
 
 > [!IMPORTANT]
-> This document defines the intended combined Windows release route. It does not assert that the pending final source revision has been built, packaged, uploaded, installed, captured, or published. Any previous recovery-only release or historical check remains separate evidence.
+> This document defines the combined Windows release route and records the verified Windows build 6.1 publication. It does not assert that either installer was executed, that the applications were launched, or that current UI captures were produced.
+
+## Current verified release
+
+| Evidence | Verified value |
+| --- | --- |
+| Release | [Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53) |
+| Tag | `windows-6.1-49880c53` |
+| Source commit | [`49880c530e09ec9dc5e8030c747f464e72759acf`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/49880c530e09ec9dc5e8030c747f464e72759acf) |
+| Publication | Non-draft, non-prerelease; 2026-08-14T02:17:37Z |
+| Workflow | [Run 31763019082](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082), successful |
+| WPF installer | [`WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe), 6,572,168 bytes, SHA-256 `bca59309abc5d2e671690aecb8e3064a4801183034f54d20527ca671fa6a686a` |
+| Exchange installer | [`ExchangeAutoInstaller-1.6.1-x64-Setup.exe`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/ExchangeAutoInstaller-1.6.1-x64-Setup.exe), 142,329,856 bytes, SHA-256 `3eee34d3b7ff34960245ba26fb29f3df36a07d44dc3f2e9787db05dd19c9f4f2` |
+| Documentation | [Public GitHub Pages site](https://cafepromenade.github.io/Windows-Server-Setupper/) and [owner-only Sites deployment](https://windows-server-setupper-guides.labapig.chatgpt.site) |
+
+Both installers are intentionally unsigned. Unknown-publisher and SmartScreen warnings may appear. The successful workflow proves build, packaging, unsigned-state, provenance, asset integrity, and publication; it did not run tests, lint, reviews, audits, installer execution, runtime UI checks, or screenshots.
 
 ## Trigger and job model
 
@@ -71,7 +86,7 @@ Dim-sum release decoration comes only from the public catalog. The workflow seed
 
 The documentation site has a separate build-only route at `docs-site/build.bat /ci`. It restores the site's locked dependencies, builds the Cloudflare Worker-compatible Sites output at `docs-site/dist`, and exports the same site for GitHub Pages at `docs-site/pages-dist` with the `/Windows-Server-Setupper/` base path. The `/ci` (or `--no-tests`) mode intentionally skips only the site's focused `node --test` step.
 
-This route prepares publication output; it is not evidence that a GitHub Pages publisher has run. No GitHub Pages URL, Sites URL, final download URL, or deployment result may be inferred from its presence. A publisher must upload the exact `pages-dist` export at the matching base path and then record the live URL only after read-back verification.
+The current public deployment is https://cafepromenade.github.io/Windows-Server-Setupper/. The owner-only Sites deployment is https://windows-server-setupper-guides.labapig.chatgpt.site. The build route alone never proves a future deployment; each later publication must still upload the matching output and verify its live URL.
 
 ## Verification and failure modes
 

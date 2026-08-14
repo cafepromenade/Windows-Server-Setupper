@@ -11,9 +11,14 @@ Windows Server Setupper contains two Windows administration applications: a resi
 
 ## Current release state
 
-The repository contains source and packaging routes for a combined Windows release, but the final combined release is **pending**. This README does not assert a current final build, package, GitHub Actions run, GitHub Release, installer download, GitHub Pages deployment, installation result, or UI capture.
+The combined Windows release is published as [Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53). The release is non-draft, non-prerelease, targets commit [`49880c530e09ec9dc5e8030c747f464e72759acf`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/49880c530e09ec9dc5e8030c747f464e72759acf), and was published at `2026-08-14T02:17:37Z` by the successful [Windows release workflow run 31763019082](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082).
 
-The previously published recovery-only WPF artifact is historical evidence only. It is not evidence that the current combined WPF and Exchange release has been built or published.
+- [Download the unsigned Windows Server Tools installer](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe) — `6,572,168` bytes.
+- [Download the unsigned Exchange Auto Installer setup](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/ExchangeAutoInstaller-1.6.1-x64-Setup.exe) — `142,329,856` bytes.
+- [Open the public documentation site](https://cafepromenade.github.io/Windows-Server-Setupper/).
+- [Open the owner-only documentation site](https://windows-server-setupper-guides.labapig.chatgpt.site).
+
+This evidence proves publication and downloadable release assets for the named commit. It does not claim installer execution, a deployed Exchange environment, tests, lint, review, audit, or UI-capture evidence; those activities were not run in the ultra-speed release pass.
 
 ## Applications
 
@@ -35,22 +40,31 @@ See the [Exchange Auto Installer guide](./Windows-Server-Tools/Exchange-Auto-Ins
 - The WPF route produces an **unsigned Inno Setup** installer.
 - The Exchange route produces an **unsigned Squirrel.Windows** setup executable, `RELEASES` index, full package, and any packager-generated delta packages.
 - Code signing is intentionally disabled for both artifact families. Windows may show unknown-publisher or SmartScreen warnings; hashes and release metadata provide integrity information, not publisher authenticity.
-- The [Windows release contract](./docs/release/windows-release.md) describes the expected build, package, and publication evidence without claiming that it exists for the pending final release.
-- The documentation-site route is `docs-site/build.bat /ci`. It creates the Cloudflare Worker-compatible `docs-site/dist` output and the GitHub Pages `docs-site/pages-dist` export without running its focused tests. A GitHub Pages URL is not asserted until that exact export is published and verified.
+- The [Windows release contract](./docs/release/windows-release.md) records the build, package, and publication evidence for the verified release.
+- The documentation-site route is `docs-site/build.bat /ci`. It creates the Cloudflare Worker-compatible `docs-site/dist` output and the GitHub Pages `docs-site/pages-dist` export without running its focused tests. The public site is live at [cafepromenade.github.io/Windows-Server-Setupper](https://cafepromenade.github.io/Windows-Server-Setupper/), and the owner-only site is live at [windows-server-setupper-guides.labapig.chatgpt.site](https://windows-server-setupper-guides.labapig.chatgpt.site).
 
 <details>
 <summary><strong>Local build and installer routes</strong></summary>
 
 `build.bat /s` is the supported local runnable-application route. `build-installer.bat /s` is the supported local installer route. They build from the checkout but do not publish, tag, or create a release. Their outputs are generated artifacts and remain outside Git history.
 
-No command in this documentation update was run to build, package, verify, install, or publish either application.
+This documentation-only update records the existing release evidence and does not rerun a build, package, installation, or publication command.
 
 </details>
 
 <details>
-<summary><strong>Release evidence still required</strong></summary>
+<summary><strong>Verified release evidence</strong></summary>
 
-Before a final combined release can be described as shipped, its exact source revision must be built and packaged; the resulting unsigned WPF and Exchange artifacts must be recorded; the release workflow and non-draft release must be read back; and the actual asset set, target revision, hashes, downloadability, and any published documentation site must be verified. This README deliberately leaves those values absent until that evidence exists.
+- **Tag:** `windows-6.1-49880c53`
+- **Target:** `49880c530e09ec9dc5e8030c747f464e72759acf`
+- **Release state:** non-draft and non-prerelease
+- **Published:** `2026-08-14T02:17:37Z`
+- **Workflow:** [run 31763019082](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082), successful
+- **Windows Server Tools installer:** `WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe`, `6,572,168` bytes
+- **Exchange setup:** `ExchangeAutoInstaller-1.6.1-x64-Setup.exe`, `142,329,856` bytes
+- **Documentation:** [public GitHub Pages site](https://cafepromenade.github.io/Windows-Server-Setupper/) and [owner-only Sites deployment](https://windows-server-setupper-guides.labapig.chatgpt.site)
+
+The installers are intentionally unsigned. This release record does not substitute for installation, runtime, test, lint, review, audit, or UI-capture evidence.
 
 </details>
 

@@ -113,19 +113,26 @@ const tabs: Array<{
 ];
 
 const release = {
-  name: "Resilient Error Recovery — 2026.08.13",
-  tag: "recovery-2026.08.13-50b75f17",
-  commit: "50b75f1781923489d1ff84691139104fcb17b818",
-  published: "2026-08-13T19:07:01Z",
-  installer: "WindowsServerTools-Setup-50b75f1781923489d1ff84691139104fcb17b818.exe",
+  name: "Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃",
+  tag: "windows-6.1-49880c53",
+  commit: "49880c530e09ec9dc5e8030c747f464e72759acf",
+  published: "2026-08-14T02:17:37Z",
+  installer: "WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe",
   installerUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/recovery-2026.08.13-50b75f17/WindowsServerTools-Setup-50b75f1781923489d1ff84691139104fcb17b818.exe",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe",
+  exchangeInstaller: "ExchangeAutoInstaller-1.6.1-x64-Setup.exe",
+  exchangeInstallerUrl:
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/ExchangeAutoInstaller-1.6.1-x64-Setup.exe",
   releaseUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/recovery-2026.08.13-50b75f17",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53",
   commitUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/commit/50b75f1781923489d1ff84691139104fcb17b818",
-  sha256: "53c030076d2ddef4955ee0c45cf1beabf066a0f64be25512026cc38af1b89839",
-  bytes: 6_876_543,
+    "https://github.com/cafepromenade/Windows-Server-Setupper/commit/49880c530e09ec9dc5e8030c747f464e72759acf",
+  runUrl:
+    "https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082",
+  sha256: "bca59309abc5d2e671690aecb8e3064a4801183034f54d20527ca671fa6a686a",
+  bytes: 6_572_168,
+  exchangeSha256: "3eee34d3b7ff34960245ba26fb29f3df36a07d44dc3f2e9787db05dd19c9f4f2",
+  exchangeBytes: 142_329_856,
 };
 
 const shippedLogo = "./brand/windows-server-setupper-logo.png";
@@ -134,8 +141,10 @@ const currentProjectFacts = [
   ["Primary application", ".NET Framework 4.7.2 WPF desktop application"],
   ["Supported target", "Windows Server; administrative rights only when an operation requires them"],
   ["Recovery format", "windows-server-tools-recovery-v3"],
-  ["Previous verified installer", release.installer],
-  ["Previous installer SHA-256", release.sha256],
+  ["Current WPF installer", release.installer],
+  ["WPF installer SHA-256", release.sha256],
+  ["Exchange installer", release.exchangeInstaller],
+  ["Exchange installer SHA-256", release.exchangeSha256],
   ["Signing", "Intentionally unsigned; no code-signing certificate is used"],
   ["Release checks", "Build and packaging completed; tests, lint, reviews, runtime UI checks, and screenshots were not run"],
 ];
@@ -728,11 +737,12 @@ export function SiteShell() {
             )}
           </p>
           <div className="button-row">
-            <a className="filled-button" href={release.installerUrl}>Download previous verified installer</a>
+            <a className="filled-button" href={release.installerUrl}>Download WPF installer</a>
+            <a className="tonal-button" href={release.exchangeInstallerUrl}>Download Exchange installer</a>
             <button type="button" className="tonal-button" onClick={() => activateTab("recovery")}>Explore recovery</button>
           </div>
           <p className="supporting-text">
-            Version 1.0.0.0 · release {release.tag} · intentionally unsigned · SHA-256 published below
+            Windows build 6.1 · release {release.tag} · intentionally unsigned · SHA-256 values published below
           </p>
         </div>
         <div className="hero-diagram" aria-label="Recovery workflow: prepare, run, record, resume">
@@ -749,8 +759,8 @@ export function SiteShell() {
       </div>
       <Card>
         <div className="section-heading">
-          <div><p className="eyebrow">Previous release evidence</p><h2>Previous verified download</h2></div>
-          <Status tone="verified">Prior verified asset</Status>
+          <div><p className="eyebrow">Current release evidence</p><h2>Verified Windows build 6.1 downloads</h2></div>
+          <Status tone="verified">Published assets verified</Status>
         </div>
         <dl className="facts-grid">
           {currentProjectFacts.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
@@ -788,13 +798,17 @@ export function SiteShell() {
 
   const renderDownload = () => (
     <div className="page-stack">
-      <header className="page-header"><p className="eyebrow">Previous release published {new Date(release.published).toLocaleString()}</p><h1>{release.name}</h1><p>The immutable asset link below names the previous verified release and installer. The pending final release has no link until publication, and this page never guesses one.</p></header>
+      <header className="page-header"><p className="eyebrow">Current release published {new Date(release.published).toLocaleString()}</p><h1>{release.name}</h1><p>These immutable asset links name the verified WPF and Exchange installers published from the exact release commit.</p></header>
       <Card className="download-card">
         <div className="download-mark" aria-hidden="true">↓</div>
-        <div><h2>{release.installer}</h2><p>{release.bytes.toLocaleString()} bytes · unsigned executable</p><code>{release.sha256}</code><div className="button-row"><a className="filled-button" href={release.installerUrl}>Download installer</a><a className="text-button" href={release.releaseUrl}>Read release notes</a></div></div>
+        <div><h2>{release.installer}</h2><p>{release.bytes.toLocaleString()} bytes · unsigned WPF installer</p><code>{release.sha256}</code><div className="button-row"><a className="filled-button" href={release.installerUrl}>Download WPF installer</a><a className="text-button" href={release.releaseUrl}>Read release notes</a></div></div>
       </Card>
-      <aside className="warning-panel"><strong>Unknown Publisher warning expected</strong><p>The installer is intentionally unsigned and may trigger an operating-system reputation warning. Verify the SHA-256 value before running it. No signature claim is made.</p></aside>
-      <Card><h2>Verification boundary</h2><ul className="check-list"><li><code>build.bat /s</code> completed for the runnable application.</li><li><code>build-installer.bat /s</code> completed and verified structure, provenance, digest, and the absence of a PE certificate table.</li><li>Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in the expedited delivery.</li><li>The release came from <a href={release.commitUrl}><code>{release.commit}</code></a>.</li></ul></Card>
+      <Card className="download-card">
+        <div className="download-mark" aria-hidden="true">↓</div>
+        <div><h2>{release.exchangeInstaller}</h2><p>{release.exchangeBytes.toLocaleString()} bytes · unsigned Exchange installer</p><code>{release.exchangeSha256}</code><div className="button-row"><a className="filled-button" href={release.exchangeInstallerUrl}>Download Exchange installer</a><a className="text-button" href={release.releaseUrl}>Read release notes</a></div></div>
+      </Card>
+      <aside className="warning-panel"><strong>Unknown Publisher warning expected</strong><p>Both installers are intentionally unsigned and may trigger an operating-system reputation warning. Verify the applicable SHA-256 value before running an installer. No signature claim is made.</p></aside>
+      <Card><h2>Verification boundary</h2><ul className="check-list"><li><code>build.bat /s</code> completed for both runnable applications.</li><li><code>build-installer.bat /s</code> completed and verified structure, provenance, digests, and the absence of PE certificate tables.</li><li>The release is non-draft, non-prerelease, and its publication run <a href={release.runUrl}>completed successfully</a>.</li><li>Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in the expedited delivery.</li><li>The release came from <a href={release.commitUrl}><code>{release.commit}</code></a>.</li></ul></Card>
     </div>
   );
 
@@ -938,7 +952,7 @@ export function SiteShell() {
           </span>
           <strong>{preferences.displayName}</strong>
         </button>
-        <div className="top-actions"><Status tone="verified">Previous release available</Status><button type="button" className="tonal-button compact-button" onClick={() => setPaletteOpen(true)}><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> Commands</button></div>
+        <div className="top-actions"><Status tone="verified">Current release available</Status><button type="button" className="tonal-button compact-button" onClick={() => setPaletteOpen(true)}><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> Commands</button></div>
       </header>
       <nav className="tab-strip" aria-label="Main documentation tabs">
         <SearchField id="tab-strip-search" label="Search this tab strip" value={query} onChange={setQuery} />
@@ -952,7 +966,7 @@ export function SiteShell() {
       <main id="main-content" ref={mainRef} tabIndex={-1} className="main-content" role="tabpanel" aria-label={`${tabs.find((tab) => tab.id === activeTab)?.en} page`}>
         {content}
       </main>
-      <footer className="site-footer"><span>Windows Server Setupper documentation · version 1.0.0.0</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={release.releaseUrl}>Previous verified release</a><span>Final release download: pending publication</span><span>No analytics · no remote fonts · local preferences only</span></footer>
+      <footer className="site-footer"><span>Windows Server Setupper documentation · Windows build 6.1</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={release.releaseUrl}>Current verified release</a><a href="https://cafepromenade.github.io/Windows-Server-Setupper/">Public documentation site</a><span>No analytics · no remote fonts · local preferences only</span></footer>
 
       {tabMenu ? <div className="context-menu overlay-card" role="menu" style={{ left: tabMenu.x, top: tabMenu.y }}><SearchField id="tab-context-search" label="Filter tab actions" value={groupQuery} onChange={setGroupQuery} /><button role="menuitem" type="button" onClick={() => updatePreference("pinnedTabs", preferences.pinnedTabs.includes(tabMenu.id) ? preferences.pinnedTabs.filter((id) => id !== tabMenu.id) : [...preferences.pinnedTabs, tabMenu.id])}>{preferences.pinnedTabs.includes(tabMenu.id) ? "Unpin tab" : "Pin tab"}<kbd>Alt+P</kbd></button><button role="menuitem" type="button" onClick={() => { setAppearanceTarget(`${tabs.find((tab) => tab.id === tabMenu.id)?.en} tab`); setTabMenu(null); }}>Edit tab appearance…<kbd>Shift+right-click</kbd></button><button role="menuitem" type="button" onClick={() => { setLockTarget(tabMenu.id); setActiveTab("settings"); setTabMenu(null); }}>Lock this tab…</button><button role="menuitem" type="button" onClick={() => setTabMenu(null)}>Close menu<kbd>Esc</kbd></button></div> : null}
 

@@ -1,8 +1,8 @@
-# Handoff: pending combined Windows final release
+# Handoff: published combined Windows release
 
 ## Current state
 
-The repository has release-record source for the resilient WPF server tools and the Exchange Auto Installer, but the combined final release is not yet asserted as built, packaged, published, installed, or captured. This handoff records the route and the outstanding evidence; it does not convert historical results into current-candidate proof.
+The combined Windows release is published as [Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53). It is non-draft and non-prerelease, targets commit [`49880c530e09ec9dc5e8030c747f464e72759acf`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/49880c530e09ec9dc5e8030c747f464e72759acf), and was published at `2026-08-14T02:17:37Z` by successful [workflow run 31763019082](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082).
 
 The current release record covers:
 
@@ -12,28 +12,23 @@ The current release record covers:
 - the optional managed OpenCode repair adviser, whose YOLO mode is off by default and limited to fixed Exchange repair actions; and
 - the intentional unsigned boundaries for the WPF/Inno Setup and Exchange/Squirrel.Windows outputs.
 
-## Delivery route, not delivery evidence
+## Verified delivery evidence
 
 - `build.bat /s` is the supported runnable-application route.
-- `build-installer.bat /s` is the supported unsigned installer route. It is expected to produce the WPF Inno Setup installer and the Exchange Squirrel.Windows setup/update set.
-- `.github/workflows/windows-release.yml` is the configured Windows build/package/publication route. It intentionally does not run tests or lint.
-- `docs-site/build.bat /ci` is the build-only documentation-site route. It emits `docs-site/dist` for Sites and `docs-site/pages-dist` for GitHub Pages, but this source revision does not prove that either output has been published.
+- `build-installer.bat /s` is the supported unsigned installer route for the WPF Inno Setup installer and Exchange Squirrel.Windows setup/update set.
+- `.github/workflows/windows-release.yml` published the verified release through [run 31763019082](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082). The workflow intentionally does not run tests or lint.
+- The unsigned [Windows Server Tools installer](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe) is `6,572,168` bytes.
+- The unsigned [Exchange Auto Installer setup](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/ExchangeAutoInstaller-1.6.1-x64-Setup.exe) is `142,329,856` bytes.
+- The documentation is published at the [public GitHub Pages site](https://cafepromenade.github.io/Windows-Server-Setupper/) and the [owner-only Sites deployment](https://windows-server-setupper-guides.labapig.chatgpt.site).
 
-No current-candidate command result, GitHub Actions run, GitHub Release URL, final artifact name, digest, asset download, GitHub Pages URL, installer execution, test result, lint result, review, audit, or UI capture is asserted by this handoff.
+## Evidence not produced by this release pass
 
-## Required final-release evidence
+The ultra-speed pass did not run tests, lint, review, audit, installer execution, a live Exchange deployment, accessibility checks, or real built-artifact UI captures. The successful publication workflow is evidence of build, package, and publication only. Any future runtime or quality evidence must name the exact commit, environment, command, and result rather than inheriting a verdict from this release.
 
-1. Preserve the exact source revision selected for release and record its commit identifier.
-2. Run the supported build and installer routes from that exact revision; retain the actual output paths, unsigned-state evidence, and hashes.
-3. Publish through the configured Windows release route and read back the unique non-draft release, its target revision, asset list, nonzero files, hashes, and downloadability.
-4. Build the documentation site with the matching source and publish `pages-dist` through a configured GitHub Pages route. Record the site URL only after it is live and verified.
-5. Keep Exchange ISO media out of Git history and release assets. Runtime use must complete its Cheap LFS metadata and final-ISO validation first.
+## Boundaries and next owner actions
 
-## Boundaries for the next owner
-
-- Do not treat the previous recovery-only WPF artifact or historical local checks as evidence for the pending combined release.
+- Use `windows-6.1-49880c53` and target `49880c530e09ec9dc5e8030c747f464e72759acf` when referring to this shipped combined release; previous recovery-only artifacts remain historical.
 - Do not claim code signing: both installer families are intentionally unsigned, and a signer invocation is a release failure.
 - Do not widen managed OpenCode repair into arbitrary execution. YOLO mode must remain explicit, off by default, and constrained to the application-defined repair catalog.
 - Do not attach or hydrate the Exchange ISO as part of publication. The runtime media flow owns its validated download/reassembly path.
-
-The next owner should update this file only with concrete, source-revision-specific evidence after final build, publication, and read-back steps complete.
+- On an appropriate test server, exercise both installers and record source-revision-specific installation and runtime evidence without converting an unrun check into a pass.

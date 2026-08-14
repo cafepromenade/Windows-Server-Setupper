@@ -326,7 +326,7 @@ const docs = [
     "id": "product-overview",
     "title": "Windows Server Setupper overview",
     "category": "Product",
-    "body": "What it is Windows Server Setupper is a collection of Windows desktop tools for configuring server roles, baseline settings, directory services, shared folders, and selected software. The primary application is a .NET Framework 4.7.2 WPF desktop application. Operating boundary The tools can change operating-system roles, network settings, security settings, scheduled tasks, and directory-service data. Evaluate them on an appropriate test server, review each requested operation, and use administrative rights only when the operation requires them. Current release The latest verified release is Resilient Error Recovery — 2026.08.13. Its installer is intentionally unsigned. The release records the exact commit, asset size, SHA-256 digest, and the checks that were and were not run.",
+    "body": "What it is Windows Server Setupper is a collection of Windows desktop tools for configuring server roles, baseline settings, directory services, shared folders, and selected software. The primary application is a .NET Framework 4.7.2 WPF desktop application. Operating boundary The tools can change operating-system roles, network settings, security settings, scheduled tasks, and directory-service data. Evaluate them on an appropriate test server, review each requested operation, and use administrative rights only when the operation requires them. Current release The latest verified release is Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃, published as windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. Its WPF and Exchange installers are intentionally unsigned. The release records each asset's exact size and SHA-256 digest together with the checks that were and were not run.",
     "sections": [
       {
         "heading": "What it is",
@@ -343,7 +343,7 @@ const docs = [
       {
         "heading": "Current release",
         "paragraphs": [
-          "The latest verified release is Resilient Error Recovery — 2026.08.13. Its installer is intentionally unsigned. The release records the exact commit, asset size, SHA-256 digest, and the checks that were and were not run."
+          "The latest verified release is Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃, published as windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. Its WPF and Exchange installers are intentionally unsigned. The release records each asset's exact size and SHA-256 digest together with the checks that were and were not run."
         ]
       }
     ],
@@ -357,24 +357,27 @@ const docs = [
     "id": "releases-changelog-and-downloads",
     "title": "Releases, changelog, and verified downloads",
     "category": "Releases",
-    "body": "Immutable release facts The current download is tied to tag recovery-2026.08.13-50b75f17 and commit 50b75f1781923489d1ff84691139104fcb17b818. The installer is 6,876,543 bytes with SHA-256 53c030076d2ddef4955ee0c45cf1beabf066a0f64be25512026cc38af1b89839. Unsigned status The installer is intentionally unsigned and may trigger Unknown Publisher or reputation warnings. Verify the SHA-256 digest before running it. The project does not claim authenticity through a code signature. Verification boundary The application build and installer package scripts completed for the release. Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in that expedited delivery pass. A release note that omits those facts would overstate the evidence.",
+    "body": "Immutable release facts Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃 was published on 2026-08-14 at 02:17:37 UTC as tag windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. The release is non-draft and non-prerelease, and its publication run completed successfully. The immutable WPF download is WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe. It is 6,572,168 bytes with SHA-256 bca59309abc5d2e671690aecb8e3064a4801183034f54d20527ca671fa6a686a. The immutable Exchange download is ExchangeAutoInstaller-1.6.1-x64-Setup.exe. It is 142,329,856 bytes with SHA-256 3eee34d3b7ff34960245ba26fb29f3df36a07d44dc3f2e9787db05dd19c9f4f2. Release notes: https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53. Publication run: https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082. Unsigned status Both installers are intentionally unsigned and may trigger Unknown Publisher, SmartScreen, or reputation warnings. Verify the applicable SHA-256 digest before running an installer. The project does not claim authenticity through a code signature. Verification boundary The application build and installer package scripts completed for both application families. Tests, linting, reviews, audits, runtime UI launch, installer execution, and screenshots were intentionally not run in that expedited delivery pass. A release note that omits those facts would overstate the evidence.",
     "sections": [
       {
         "heading": "Immutable release facts",
         "paragraphs": [
-          "The current download is tied to tag recovery-2026.08.13-50b75f17 and commit 50b75f1781923489d1ff84691139104fcb17b818. The installer is 6,876,543 bytes with SHA-256 53c030076d2ddef4955ee0c45cf1beabf066a0f64be25512026cc38af1b89839."
+          "Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃 was published on 2026-08-14 at 02:17:37 UTC as tag windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. The release is non-draft and non-prerelease, and its publication run completed successfully.",
+          "The immutable WPF download is WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe. It is 6,572,168 bytes with SHA-256 bca59309abc5d2e671690aecb8e3064a4801183034f54d20527ca671fa6a686a.",
+          "The immutable Exchange download is ExchangeAutoInstaller-1.6.1-x64-Setup.exe. It is 142,329,856 bytes with SHA-256 3eee34d3b7ff34960245ba26fb29f3df36a07d44dc3f2e9787db05dd19c9f4f2.",
+          "Release notes: https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53. Publication run: https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082."
         ]
       },
       {
         "heading": "Unsigned status",
         "paragraphs": [
-          "The installer is intentionally unsigned and may trigger Unknown Publisher or reputation warnings. Verify the SHA-256 digest before running it. The project does not claim authenticity through a code signature."
+          "Both installers are intentionally unsigned and may trigger Unknown Publisher, SmartScreen, or reputation warnings. Verify the applicable SHA-256 digest before running an installer. The project does not claim authenticity through a code signature."
         ]
       },
       {
         "heading": "Verification boundary",
         "paragraphs": [
-          "The application build and installer package scripts completed for the release. Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in that expedited delivery pass. A release note that omits those facts would overstate the evidence."
+          "The application build and installer package scripts completed for both application families. Tests, linting, reviews, audits, runtime UI launch, installer execution, and screenshots were intentionally not run in that expedited delivery pass. A release note that omits those facts would overstate the evidence."
         ]
       }
     ],

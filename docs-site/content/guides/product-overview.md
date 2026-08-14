@@ -12,4 +12,4 @@ The tools can change operating-system roles, network settings, security settings
 
 ## Current release
 
-The latest verified release is Resilient Error Recovery — 2026.08.13. Its installer is intentionally unsigned. The release records the exact commit, asset size, SHA-256 digest, and the checks that were and were not run.
+The latest verified release is Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃, published as windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. Its WPF and Exchange installers are intentionally unsigned. The release records each asset's exact size and SHA-256 digest together with the checks that were and were not run.

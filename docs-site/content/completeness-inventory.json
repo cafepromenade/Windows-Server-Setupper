@@ -258,23 +258,23 @@
       "id": "release-download",
       "name": "Verified installer download",
       "status": "implemented",
-      "implementation": "app/site-shell.tsx: immutable GitHub release asset URL and exact SHA-256",
+      "implementation": "app/site-shell.tsx: immutable WPF and Exchange release asset URLs and exact SHA-256 values",
       "article": "content/guides/releases-changelog-and-downloads.md",
       "localized": "Unsigned and verification boundaries stay factual",
       "test": "tests/rendered-html.test.mjs: exact download facts",
-      "interaction": "Home and Download tabs link the verified installer",
+      "interaction": "Home and Download tabs link both verified installers",
       "capture": "Pending real built-site capture; delegated lane prohibited browser launch"
     },
     {
       "id": "hosting",
       "name": "Sites and GitHub Pages publication readiness",
-      "status": "pending-external-publication",
-      "implementation": ".openai/hosting.json and Cloudflare Worker-compatible vinext build",
+      "status": "published-without-current-captures",
+      "implementation": "Published GitHub Pages site and owner-only Sites deployment backed by the Cloudflare Worker-compatible vinext build",
       "article": "content/guides/offline-documentation.md",
-      "localized": "No site URL is claimed before publication",
+      "localized": "Published URLs and access boundaries remain factual in every language mode",
       "test": "tests/rendered-html.test.mjs and npm run build",
-      "interaction": "Local built site only in this delegated lane",
-      "capture": "Pending publication, browser verification and real captures"
+      "interaction": "Public site: https://cafepromenade.github.io/Windows-Server-Setupper/; owner-only site: https://windows-server-setupper-guides.labapig.chatgpt.site",
+      "capture": "Publication is verified; current real site captures were not run in the expedited release pass"
     }
   ]
 }
