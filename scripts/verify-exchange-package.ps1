@@ -14,6 +14,24 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $distRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputRoot))
 $squirrelRoot = Join-Path $distRoot 'squirrel-windows'
 $unpackedRoot = Join-Path $distRoot 'win-unpacked'
+
+function Get-LowercaseFileHash([string]$Path, [ValidateSet('SHA1', 'SHA256')][string]$Algorithm) {
+    $hashAlgorithm = if ($Algorithm -eq 'SHA1') {
+        [System.Security.Cryptography.SHA1]::Create()
+    } else {
+        [System.Security.Cryptography.SHA256]::Create()
+    }
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        $hashBytes = $hashAlgorithm.ComputeHash($stream)
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $hashAlgorithm.Dispose()
+    }
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
+}
+
 if ($SourceCommit -notmatch '^[0-9a-f]{40}$') { throw "SourceCommit is not an exact Git SHA: $SourceCommit" }
 if (-not (Test-Path -LiteralPath $squirrelRoot -PathType Container)) { throw "Squirrel.Windows output is missing: $squirrelRoot" }
 if (-not (Test-Path -LiteralPath $unpackedRoot -PathType Container)) { throw "Unpacked application output is missing: $unpackedRoot" }
@@ -53,7 +71,7 @@ foreach ($line in Get-Content -LiteralPath $releaseIndex) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "RELEASES references a missing package: $name" }
     $item = Get-Item -LiteralPath $path
     if ($item.Length -ne $expectedBytes) { throw "RELEASES size mismatch for ${name}: index=$expectedBytes file=$($item.Length)" }
-    $actualSha1 = (Get-FileHash -LiteralPath $path -Algorithm SHA1).Hash.ToLowerInvariant()
+    $actualSha1 = Get-LowercaseFileHash -Path $path -Algorithm SHA1
     if ($actualSha1 -cne $expectedSha1) { throw "RELEASES SHA-1 mismatch for $name" }
     $indexEntries += [ordered]@{ name = $name; bytes = $item.Length; sha1 = $actualSha1 }
 }
@@ -67,7 +85,7 @@ $artifactRows = foreach ($artifact in $artifacts) {
     [ordered]@{
         name = $artifact.Name
         bytes = $artifact.Length
-        sha256 = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-LowercaseFileHash -Path $artifact.FullName -Algorithm SHA256
     }
 }
 $result = [ordered]@{
