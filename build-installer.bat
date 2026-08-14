@@ -59,7 +59,7 @@ echo Source commit: %SOURCE_COMMIT%
 
 set "PACKAGE_VERSION=%WST_RELEASE_VERSION%"
 if not defined PACKAGE_VERSION (
-    for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; (Get-Content -LiteralPath (Join-Path $env:EXCHANGE_ROOT 'package.json') -Raw ^| ConvertFrom-Json).version"`) do set "PACKAGE_VERSION=%%I"
+    for /f "usebackq delims=" %%I in (`powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $packageJson=Get-Content -LiteralPath (Join-Path $env:EXCHANGE_ROOT 'package.json') -Raw; (ConvertFrom-Json -InputObject $packageJson).version"`) do set "PACKAGE_VERSION=%%I"
 )
 echo %PACKAGE_VERSION%| findstr /r /x "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*" >nul || (
     echo ERROR: Shared installer version must be numeric major.minor.patch text; got "%PACKAGE_VERSION%".
