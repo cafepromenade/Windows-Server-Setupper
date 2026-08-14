@@ -112,7 +112,9 @@ const tabs: Array<{
   { id: "completeness", group: "Configure", en: "Completeness", zh: "完整度", icon: "✓" },
 ];
 
-const release = {
+const latestReleaseUrl = "https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest";
+
+const verifiedBaseline = {
   name: "Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃",
   tag: "windows-8.1-ba3d587a",
   commit: "ba3d587a6b1240d960ea390a43b6c8928e521ff1",
@@ -137,16 +139,17 @@ const release = {
 
 const shippedLogo = "./brand/windows-server-setupper-logo.png";
 
-const currentProjectFacts = [
+const projectFacts = [
   ["Primary application", ".NET Framework 4.7.2 WPF desktop application"],
   ["Supported target", "Windows Server; administrative rights only when an operation requires them"],
   ["Recovery format", "windows-server-tools-recovery-v3"],
-  ["Current WPF installer", release.installer],
-  ["WPF installer SHA-256", release.sha256],
-  ["Exchange installer", release.exchangeInstaller],
-  ["Exchange installer SHA-256", release.exchangeSha256],
+  ["Verified immutable baseline", verifiedBaseline.name],
+  ["Baseline WPF installer", verifiedBaseline.installer],
+  ["Baseline WPF installer SHA-256", verifiedBaseline.sha256],
+  ["Baseline Exchange installer", verifiedBaseline.exchangeInstaller],
+  ["Baseline Exchange installer SHA-256", verifiedBaseline.exchangeSha256],
   ["Signing", "Intentionally unsigned; no code-signing certificate is used"],
-  ["Release checks", "Build and packaging completed; GitHub Actions ran no tests, lint, type checks, static analysis, accessibility checks, or screenshot checks"],
+  ["Baseline release checks", "Build and packaging completed; GitHub Actions ran no tests, lint, type checks, static analysis, accessibility checks, or screenshot checks"],
 ];
 
 function safeParse<T>(value: string | null, fallback: T): T {
@@ -542,7 +545,7 @@ export function SiteShell() {
     ...tabs.map((tab) => ({ label: `Open ${tab.en}`, action: () => activateTab(tab.id) })),
     { label: "Switch to light theme", action: () => updatePreference("theme", "light") },
     { label: "Switch to dark theme", action: () => updatePreference("theme", "dark") },
-    { label: "Open verified installer", action: () => window.open(release.installerUrl, "_self") },
+    { label: "Open latest release", action: () => window.open(latestReleaseUrl, "_self") },
     { label: "Focus personal vocabulary upload", action: () => document.getElementById("vocabulary-file")?.focus() },
     { label: "Focus app logo upload", action: () => document.getElementById("logo-file")?.focus() },
   ].filter((command) => command.label.toLocaleLowerCase().includes(paletteQuery.toLocaleLowerCase()));
@@ -737,12 +740,12 @@ export function SiteShell() {
             )}
           </p>
           <div className="button-row">
-            <a className="filled-button" href={release.installerUrl}>Download WPF installer</a>
-            <a className="tonal-button" href={release.exchangeInstallerUrl}>Download Exchange installer</a>
-            <button type="button" className="tonal-button" onClick={() => activateTab("recovery")}>Explore recovery</button>
+            <a className="filled-button" href={verifiedBaseline.installerUrl}>Download verified-baseline Windows build 8.1 WPF installer for Windows</a>
+            <a className="tonal-button" href={verifiedBaseline.exchangeInstallerUrl}>Download verified-baseline Windows build 8.1 Exchange installer for Windows</a>
+            <a className="filled-button" href={latestReleaseUrl}>View latest release</a>
           </div>
           <p className="supporting-text">
-            Windows build 8.1 · release {release.tag} · intentionally unsigned · SHA-256 values published below
+            Verified immutable baseline: Windows build 8.1 · release {verifiedBaseline.tag} · intentionally unsigned · SHA-256 values published below
           </p>
         </div>
         <div className="hero-diagram" aria-label="Recovery workflow: prepare, run, record, resume">
@@ -759,11 +762,11 @@ export function SiteShell() {
       </div>
       <Card>
         <div className="section-heading">
-          <div><p className="eyebrow">Current release evidence</p><h2>Verified Windows build 8.1 downloads</h2></div>
-          <Status tone="verified">Published assets verified</Status>
+          <div><p className="eyebrow">Verified immutable baseline evidence</p><h2>Windows build 8.1 baseline assets</h2></div>
+          <div className="button-row"><Status tone="verified">Baseline assets verified</Status><a className="text-button" href={latestReleaseUrl}>View latest release</a></div>
         </div>
         <dl className="facts-grid">
-          {currentProjectFacts.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
+          {projectFacts.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
         </dl>
       </Card>
       <Card>
@@ -798,17 +801,18 @@ export function SiteShell() {
 
   const renderDownload = () => (
     <div className="page-stack">
-      <header className="page-header"><p className="eyebrow">Current release published {new Date(release.published).toLocaleString()}</p><h1>{release.name}</h1><p>These immutable asset links name the verified WPF and Exchange installers published from the exact release commit.</p></header>
+      <header className="page-header"><p className="eyebrow">Verified immutable baseline published {new Date(verifiedBaseline.published).toLocaleString()}</p><h1>{verifiedBaseline.name}</h1><p>These immutable asset links are verified 8.1 baseline evidence, not a claim that 8.1 is the latest release.</p></header>
+      <Card><h2>Latest published release</h2><p>For the current release and its current download choices, use GitHub’s stable latest-release record.</p><a className="filled-button" href={latestReleaseUrl}>View latest release</a></Card>
       <Card className="download-card">
         <div className="download-mark" aria-hidden="true">↓</div>
-        <div><h2>{release.installer}</h2><p>{release.bytes.toLocaleString()} bytes · unsigned WPF installer</p><code>{release.sha256}</code><div className="button-row"><a className="filled-button" href={release.installerUrl}>Download WPF installer</a><a className="text-button" href={release.releaseUrl}>Read release notes</a></div></div>
+        <div><h2>{verifiedBaseline.installer}</h2><p>{verifiedBaseline.bytes.toLocaleString()} bytes · unsigned WPF installer · verified 8.1 baseline</p><code>{verifiedBaseline.sha256}</code><div className="button-row"><a className="filled-button" href={verifiedBaseline.installerUrl}>Download baseline WPF installer</a><a className="text-button" href={verifiedBaseline.releaseUrl}>Read baseline release notes</a></div></div>
       </Card>
       <Card className="download-card">
         <div className="download-mark" aria-hidden="true">↓</div>
-        <div><h2>{release.exchangeInstaller}</h2><p>{release.exchangeBytes.toLocaleString()} bytes · unsigned Exchange installer</p><code>{release.exchangeSha256}</code><div className="button-row"><a className="filled-button" href={release.exchangeInstallerUrl}>Download Exchange installer</a><a className="text-button" href={release.releaseUrl}>Read release notes</a></div></div>
+        <div><h2>{verifiedBaseline.exchangeInstaller}</h2><p>{verifiedBaseline.exchangeBytes.toLocaleString()} bytes · unsigned Exchange installer · verified 8.1 baseline</p><code>{verifiedBaseline.exchangeSha256}</code><div className="button-row"><a className="filled-button" href={verifiedBaseline.exchangeInstallerUrl}>Download baseline Exchange installer</a><a className="text-button" href={verifiedBaseline.releaseUrl}>Read baseline release notes</a></div></div>
       </Card>
       <aside className="warning-panel"><strong>Unknown Publisher warning expected</strong><p>Both installers are intentionally unsigned and may trigger an operating-system reputation warning. Verify the applicable SHA-256 value before running an installer. No signature claim is made.</p></aside>
-      <Card><h2>Verification boundary</h2><ul className="check-list"><li><code>build.bat /s</code> completed for both runnable applications.</li><li><code>build-installer.bat /s</code> completed and verified structure, provenance, digests, and the absence of PE certificate tables.</li><li>The release is non-draft, non-prerelease, and its publication run <a href={release.runUrl}>completed successfully</a>.</li><li>Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in the expedited delivery.</li><li>The release came from <a href={release.commitUrl}><code>{release.commit}</code></a>.</li></ul></Card>
+      <Card><h2>8.1 baseline verification boundary</h2><ul className="check-list"><li><code>build.bat /s</code> completed for both runnable applications.</li><li><code>build-installer.bat /s</code> completed and verified structure, provenance, digests, and the absence of PE certificate tables.</li><li>The baseline release is non-draft, non-prerelease, and its publication run <a href={verifiedBaseline.runUrl}>completed successfully</a>.</li><li>Tests, linting, reviews, audits, runtime UI launch, and screenshots were intentionally not run in the expedited delivery.</li><li>The baseline release came from <a href={verifiedBaseline.commitUrl}><code>{verifiedBaseline.commit}</code></a>.</li></ul></Card>
     </div>
   );
 
@@ -952,7 +956,7 @@ export function SiteShell() {
           </span>
           <strong>{preferences.displayName}</strong>
         </button>
-        <div className="top-actions"><Status tone="verified">Current release available</Status><button type="button" className="tonal-button compact-button" onClick={() => setPaletteOpen(true)}><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> Commands</button></div>
+        <div className="top-actions"><Status tone="verified">Latest release on GitHub</Status><button type="button" className="tonal-button compact-button" onClick={() => setPaletteOpen(true)}><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> Commands</button></div>
       </header>
       <nav className="tab-strip" aria-label="Main documentation tabs">
         <SearchField id="tab-strip-search" label="Search this tab strip" value={query} onChange={setQuery} />
@@ -966,7 +970,7 @@ export function SiteShell() {
       <main id="main-content" ref={mainRef} tabIndex={-1} className="main-content" role="tabpanel" aria-label={`${tabs.find((tab) => tab.id === activeTab)?.en} page`}>
         {content}
       </main>
-      <footer className="site-footer"><span>Windows Server Setupper documentation · Windows build 8.1</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={release.releaseUrl}>Current verified release</a><a href="https://cafepromenade.github.io/Windows-Server-Setupper/">Public documentation site</a><span>No analytics · no remote fonts · local preferences only</span></footer>
+      <footer className="site-footer"><span>Windows Server Setupper documentation · verified immutable Windows build 8.1 baseline</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={latestReleaseUrl}>Latest published release</a><a href="https://cafepromenade.github.io/Windows-Server-Setupper/">Public documentation site</a><span>No analytics · no remote fonts · local preferences only</span></footer>
 
       {tabMenu ? <div className="context-menu overlay-card" role="menu" style={{ left: tabMenu.x, top: tabMenu.y }}><SearchField id="tab-context-search" label="Filter tab actions" value={groupQuery} onChange={setGroupQuery} /><button role="menuitem" type="button" onClick={() => updatePreference("pinnedTabs", preferences.pinnedTabs.includes(tabMenu.id) ? preferences.pinnedTabs.filter((id) => id !== tabMenu.id) : [...preferences.pinnedTabs, tabMenu.id])}>{preferences.pinnedTabs.includes(tabMenu.id) ? "Unpin tab" : "Pin tab"}<kbd>Alt+P</kbd></button><button role="menuitem" type="button" onClick={() => { setAppearanceTarget(`${tabs.find((tab) => tab.id === tabMenu.id)?.en} tab`); setTabMenu(null); }}>Edit tab appearance…<kbd>Shift+right-click</kbd></button><button role="menuitem" type="button" onClick={() => { setLockTarget(tabMenu.id); setActiveTab("settings"); setTabMenu(null); }}>Lock this tab…</button><button role="menuitem" type="button" onClick={() => setTabMenu(null)}>Close menu<kbd>Esc</kbd></button></div> : null}
 

@@ -1,9 +1,9 @@
 # Windows release contract
 
 > [!IMPORTANT]
-> This document defines the combined Windows release route and records the verified Windows build 8.1 publication. It does not assert that either installer was executed, that the applications were launched, or that current UI captures were produced.
+> This document defines the combined Windows release route and records the verified immutable Windows build 8.1 baseline publication. For current release facts and downloads, resolve [the repository's latest release](https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest). It does not assert that either installer was executed, that the applications were launched, or that current UI captures were produced.
 
-## Current verified release
+## Verified immutable baseline (Windows 8.1)
 
 | Evidence | Verified value |
 | --- | --- |

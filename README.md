@@ -4,23 +4,25 @@ Windows Server Setupper contains two Windows administration applications: a resi
 
 ## Index
 
-- [Current release state](#current-release-state)
+- [Latest release and verified baseline](#latest-release-and-verified-baseline)
 - [Applications](#applications)
 - [Delivery and documentation](#delivery-and-documentation)
 - [Roadmap](./ROADMAP.md) and [handoff](./HANDOFF.md)
 
-## Current release state
+## Latest release and verified baseline
 
-The combined Windows release is published as [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a). The release is non-draft, non-prerelease, targets commit [`ba3d587a6b1240d960ea390a43b6c8928e521ff1`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/ba3d587a6b1240d960ea390a43b6c8928e521ff1), and was published at `2026-08-14T05:37:03Z` by the successful [Windows release workflow run 31773190945](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31773190945). The release-record publication interval began at `2026-08-14T05:30:14Z` and ended at `2026-08-14T05:37:03Z` (`00:06:49`).
+For the current release and its downloadable assets, use [the repository's latest release](https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest). The Windows 8.1 record below is a verified immutable baseline, not a claim about whichever release is latest when this page is read.
 
-- [Download the unsigned Windows Server Tools installer](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe) — `6,572,044` bytes; SHA-256 `3e3e72e125671736df93661067e01c42d644f6c75f01b7053e1aafb7dff032c1`.
-- [Download the unsigned Exchange Auto Installer setup](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/ExchangeAutoInstaller-1.8.1-x64-Setup.exe) — `142,329,856` bytes; SHA-256 `a5d40df90018ed6ba2ea15e26612c8353189b93c61512f23210e3cc91446d800`.
-- [Download the Exchange Squirrel update index](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/RELEASES) — `94` bytes; SHA-256 `a2c276e594eafb206949b83958184d7e5e46442fc9a5a2f674b138c32fecb8bc`.
-- [Download the Exchange Squirrel full package](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/exchange-auto-installer-1.8.1-full.nupkg) — `141,268,448` bytes; SHA-256 `6ca88065dd39820538b84f794b3f19e42b4a812fd040f4b26b77c037220e8b31`.
+The verified immutable baseline is [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a). It is non-draft, non-prerelease, targets commit [`ba3d587a6b1240d960ea390a43b6c8928e521ff1`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/ba3d587a6b1240d960ea390a43b6c8928e521ff1), and was published at `2026-08-14T05:37:03Z` by the successful [Windows release workflow run 31773190945](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31773190945). The release-record publication interval began at `2026-08-14T05:30:14Z` and ended at `2026-08-14T05:37:03Z` (`00:06:49`).
+
+- **Verified Windows 8.1 baseline asset:** [unsigned Windows Server Tools installer](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe) — `6,572,044` bytes; SHA-256 `3e3e72e125671736df93661067e01c42d644f6c75f01b7053e1aafb7dff032c1`.
+- **Verified Windows 8.1 baseline asset:** [unsigned Exchange Auto Installer setup](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/ExchangeAutoInstaller-1.8.1-x64-Setup.exe) — `142,329,856` bytes; SHA-256 `a5d40df90018ed6ba2ea15e26612c8353189b93c61512f23210e3cc91446d800`.
+- **Verified Windows 8.1 baseline asset:** [Exchange Squirrel update index](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/RELEASES) — `94` bytes; SHA-256 `a2c276e594eafb206949b83958184d7e5e46442fc9a5a2f674b138c32fecb8bc`.
+- **Verified Windows 8.1 baseline asset:** [Exchange Squirrel full package](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/exchange-auto-installer-1.8.1-full.nupkg) — `141,268,448` bytes; SHA-256 `6ca88065dd39820538b84f794b3f19e42b4a812fd040f4b26b77c037220e8b31`.
 - [Open the public documentation site](https://cafepromenade.github.io/Windows-Server-Setupper/).
 - [Open the owner-only documentation site](https://windows-server-setupper-guides.labapig.chatgpt.site).
 
-This evidence proves publication and downloadable release assets for the named commit. It does not claim installer execution, a deployed Exchange environment, tests, lint, review, audit, or UI-capture evidence; those activities were not run in the ultra-speed release pass.
+This baseline evidence proves publication and downloadable release assets for the named commit. It does not claim installer execution, a deployed Exchange environment, tests, lint, review, audit, or UI-capture evidence; those activities were not run in the ultra-speed release pass.
 
 ## Applications
 
@@ -42,7 +44,7 @@ See the [Exchange Auto Installer guide](./Windows-Server-Tools/Exchange-Auto-Ins
 - The WPF route produces an **unsigned Inno Setup** installer.
 - The Exchange route produces an **unsigned Squirrel.Windows** setup executable, `RELEASES` index, full package, and any packager-generated delta packages.
 - Code signing is intentionally disabled for both artifact families. Windows may show unknown-publisher or SmartScreen warnings; hashes and release metadata provide integrity information, not publisher authenticity.
-- The [Windows release contract](./docs/release/windows-release.md) records the build, package, and publication evidence for the verified release.
+- The [Windows release contract](./docs/release/windows-release.md) records the verified immutable baseline and directs live-release readers to the latest release record.
 - The documentation-site route is `docs-site/build.bat /ci`. It creates the Cloudflare Worker-compatible `docs-site/dist` output and the GitHub Pages `docs-site/pages-dist` export without running its focused tests. The public site is live at [cafepromenade.github.io/Windows-Server-Setupper](https://cafepromenade.github.io/Windows-Server-Setupper/), and the owner-only site is live at [windows-server-setupper-guides.labapig.chatgpt.site](https://windows-server-setupper-guides.labapig.chatgpt.site).
 
 <details>
@@ -55,9 +57,10 @@ This documentation-only update records the existing release evidence and does no
 </details>
 
 <details>
-<summary><strong>Verified release evidence</strong></summary>
+<summary><strong>Verified immutable Windows 8.1 baseline evidence</strong></summary>
 
-- **Release:** [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a)
+- **Latest release:** [Open the repository's latest release](https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest)
+- **Baseline release:** [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a)
 - **Tag:** `windows-8.1-ba3d587a`
 - **Target:** `ba3d587a6b1240d960ea390a43b6c8928e521ff1`
 - **Release state:** non-draft and non-prerelease
@@ -70,7 +73,7 @@ This documentation-only update records the existing release evidence and does no
 - **Exchange full package:** `exchange-auto-installer-1.8.1-full.nupkg`, `141,268,448` bytes, SHA-256 `6ca88065dd39820538b84f794b3f19e42b4a812fd040f4b26b77c037220e8b31`
 - **Documentation:** [public GitHub Pages site](https://cafepromenade.github.io/Windows-Server-Setupper/) and [owner-only Sites deployment](https://windows-server-setupper-guides.labapig.chatgpt.site)
 
-The installers are intentionally unsigned. This release record does not substitute for installation, runtime, test, lint, review, audit, or UI-capture evidence.
+The installers are intentionally unsigned. This baseline record does not substitute for installation, runtime, test, lint, review, audit, or UI-capture evidence.
 
 </details>
 
