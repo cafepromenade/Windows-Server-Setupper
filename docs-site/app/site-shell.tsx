@@ -113,25 +113,25 @@ const tabs: Array<{
 ];
 
 const release = {
-  name: "Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃",
-  tag: "windows-6.1-49880c53",
-  commit: "49880c530e09ec9dc5e8030c747f464e72759acf",
-  published: "2026-08-14T02:17:37Z",
-  installer: "WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe",
+  name: "Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃",
+  tag: "windows-8.1-ba3d587a",
+  commit: "ba3d587a6b1240d960ea390a43b6c8928e521ff1",
+  published: "2026-08-14T05:37:03Z",
+  installer: "WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe",
   installerUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/WindowsServerTools-Setup-49880c530e09ec9dc5e8030c747f464e72759acf.exe",
-  exchangeInstaller: "ExchangeAutoInstaller-1.6.1-x64-Setup.exe",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe",
+  exchangeInstaller: "ExchangeAutoInstaller-1.8.1-x64-Setup.exe",
   exchangeInstallerUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-6.1-49880c53/ExchangeAutoInstaller-1.6.1-x64-Setup.exe",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/ExchangeAutoInstaller-1.8.1-x64-Setup.exe",
   releaseUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-6.1-49880c53",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a",
   commitUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/commit/49880c530e09ec9dc5e8030c747f464e72759acf",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/commit/ba3d587a6b1240d960ea390a43b6c8928e521ff1",
   runUrl:
-    "https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31763019082",
-  sha256: "bca59309abc5d2e671690aecb8e3064a4801183034f54d20527ca671fa6a686a",
-  bytes: 6_572_168,
-  exchangeSha256: "3eee34d3b7ff34960245ba26fb29f3df36a07d44dc3f2e9787db05dd19c9f4f2",
+    "https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31773190945",
+  sha256: "3e3e72e125671736df93661067e01c42d644f6c75f01b7053e1aafb7dff032c1",
+  bytes: 6_572_044,
+  exchangeSha256: "a5d40df90018ed6ba2ea15e26612c8353189b93c61512f23210e3cc91446d800",
   exchangeBytes: 142_329_856,
 };
 
@@ -146,7 +146,7 @@ const currentProjectFacts = [
   ["Exchange installer", release.exchangeInstaller],
   ["Exchange installer SHA-256", release.exchangeSha256],
   ["Signing", "Intentionally unsigned; no code-signing certificate is used"],
-  ["Release checks", "Build and packaging completed; tests, lint, reviews, runtime UI checks, and screenshots were not run"],
+  ["Release checks", "Build and packaging completed; GitHub Actions ran no tests, lint, type checks, static analysis, accessibility checks, or screenshot checks"],
 ];
 
 function safeParse<T>(value: string | null, fallback: T): T {
@@ -742,7 +742,7 @@ export function SiteShell() {
             <button type="button" className="tonal-button" onClick={() => activateTab("recovery")}>Explore recovery</button>
           </div>
           <p className="supporting-text">
-            Windows build 6.1 · release {release.tag} · intentionally unsigned · SHA-256 values published below
+            Windows build 8.1 · release {release.tag} · intentionally unsigned · SHA-256 values published below
           </p>
         </div>
         <div className="hero-diagram" aria-label="Recovery workflow: prepare, run, record, resume">
@@ -759,7 +759,7 @@ export function SiteShell() {
       </div>
       <Card>
         <div className="section-heading">
-          <div><p className="eyebrow">Current release evidence</p><h2>Verified Windows build 6.1 downloads</h2></div>
+          <div><p className="eyebrow">Current release evidence</p><h2>Verified Windows build 8.1 downloads</h2></div>
           <Status tone="verified">Published assets verified</Status>
         </div>
         <dl className="facts-grid">
@@ -966,7 +966,7 @@ export function SiteShell() {
       <main id="main-content" ref={mainRef} tabIndex={-1} className="main-content" role="tabpanel" aria-label={`${tabs.find((tab) => tab.id === activeTab)?.en} page`}>
         {content}
       </main>
-      <footer className="site-footer"><span>Windows Server Setupper documentation · Windows build 6.1</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={release.releaseUrl}>Current verified release</a><a href="https://cafepromenade.github.io/Windows-Server-Setupper/">Public documentation site</a><span>No analytics · no remote fonts · local preferences only</span></footer>
+      <footer className="site-footer"><span>Windows Server Setupper documentation · Windows build 8.1</span><a href="https://github.com/cafepromenade/Windows-Server-Setupper">Source repository</a><a href={release.releaseUrl}>Current verified release</a><a href="https://cafepromenade.github.io/Windows-Server-Setupper/">Public documentation site</a><span>No analytics · no remote fonts · local preferences only</span></footer>
 
       {tabMenu ? <div className="context-menu overlay-card" role="menu" style={{ left: tabMenu.x, top: tabMenu.y }}><SearchField id="tab-context-search" label="Filter tab actions" value={groupQuery} onChange={setGroupQuery} /><button role="menuitem" type="button" onClick={() => updatePreference("pinnedTabs", preferences.pinnedTabs.includes(tabMenu.id) ? preferences.pinnedTabs.filter((id) => id !== tabMenu.id) : [...preferences.pinnedTabs, tabMenu.id])}>{preferences.pinnedTabs.includes(tabMenu.id) ? "Unpin tab" : "Pin tab"}<kbd>Alt+P</kbd></button><button role="menuitem" type="button" onClick={() => { setAppearanceTarget(`${tabs.find((tab) => tab.id === tabMenu.id)?.en} tab`); setTabMenu(null); }}>Edit tab appearance…<kbd>Shift+right-click</kbd></button><button role="menuitem" type="button" onClick={() => { setLockTarget(tabMenu.id); setActiveTab("settings"); setTabMenu(null); }}>Lock this tab…</button><button role="menuitem" type="button" onClick={() => setTabMenu(null)}>Close menu<kbd>Esc</kbd></button></div> : null}
 

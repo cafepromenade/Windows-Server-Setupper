@@ -2,7 +2,20 @@
 
 ## Current release lookup
 
-The 6.1 facts below are a historical baseline, not a statement of the current release. Before referring to a current published release, resolve [the repository's latest release](https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest) and inspect that release record's tag, target commit, assets, workflow evidence, and publication time. This keeps the handoff accurate when a later push publishes a newer release.
+The 6.1 facts below are a historical baseline, not a statement of the current release. The current verified 8.1 release is recorded below. Before referring to a release after this handoff, resolve [the repository's latest release](https://github.com/cafepromenade/Windows-Server-Setupper/releases/latest) and inspect that release record's tag, target commit, assets, workflow evidence, and publication time.
+
+## Current verified release (Windows 8.1)
+
+At `2026-08-14T05:37:03Z`, [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a) was published as a non-draft, non-prerelease release targeting commit [`ba3d587a6b1240d960ea390a43b6c8928e521ff1`](https://github.com/cafepromenade/Windows-Server-Setupper/commit/ba3d587a6b1240d960ea390a43b6c8928e521ff1). Successful [workflow run 31773190945](https://github.com/cafepromenade/Windows-Server-Setupper/actions/runs/31773190945) produced the release. Its release-record publication interval is `2026-08-14T05:30:14Z` to `2026-08-14T05:37:03Z` (`00:06:49`).
+
+The current 8.1 delivery assets are:
+
+- unsigned [`WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/WindowsServerTools-Setup-ba3d587a6b1240d960ea390a43b6c8928e521ff1.exe), `6,572,044` bytes, SHA-256 `3e3e72e125671736df93661067e01c42d644f6c75f01b7053e1aafb7dff032c1`;
+- unsigned [`ExchangeAutoInstaller-1.8.1-x64-Setup.exe`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/ExchangeAutoInstaller-1.8.1-x64-Setup.exe), `142,329,856` bytes, SHA-256 `a5d40df90018ed6ba2ea15e26612c8353189b93c61512f23210e3cc91446d800`;
+- [`RELEASES`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/RELEASES), `94` bytes, SHA-256 `a2c276e594eafb206949b83958184d7e5e46442fc9a5a2f674b138c32fecb8bc`; and
+- [`exchange-auto-installer-1.8.1-full.nupkg`](https://github.com/cafepromenade/Windows-Server-Setupper/releases/download/windows-8.1-ba3d587a/exchange-auto-installer-1.8.1-full.nupkg), `141,268,448` bytes, SHA-256 `6ca88065dd39820538b84f794b3f19e42b4a812fd040f4b26b77c037220e8b31`.
+
+The 8.1 release is intentionally unsigned. The workflow built, packaged, and published artifacts without tests, lint, type checking, static analysis, accessibility checks, reviews, audits, installer execution, or screenshots; those activities must not be inferred from publication.
 
 ## Historical release baseline (Windows 6.1)
 

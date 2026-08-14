@@ -48,7 +48,7 @@ for (const expected of [
   `<base href="${basePath}/"/>`,
   `${basePath}/_next/static/`,
   "Server setup that remembers what finished.",
-  "Windows Server Setupper documentation · Windows build 6.1",
+  "Windows Server Setupper documentation · Windows build 8.1",
 ]) {
   if (!rendered.includes(expected)) throw new Error(`Static export is missing ${expected}`);
 }

@@ -12,4 +12,4 @@ The tools can change operating-system roles, network settings, security settings
 
 ## Current release
 
-The latest verified release is Windows build 6.1 · Pea Shoot Shrimp Dumpling · 豆苗蝦餃, published as windows-6.1-49880c53 from commit 49880c530e09ec9dc5e8030c747f464e72759acf. Its WPF and Exchange installers are intentionally unsigned. The release records each asset's exact size and SHA-256 digest together with the checks that were and were not run.
+The latest verified release is [Windows build 8.1 · Dried Scallop Shrimp Dumpling · 瑤柱蝦餃](https://github.com/cafepromenade/Windows-Server-Setupper/releases/tag/windows-8.1-ba3d587a), published on 2026-08-14 at 05:37:03 UTC as tag `windows-8.1-ba3d587a` from commit `ba3d587a6b1240d960ea390a43b6c8928e521ff1`. Its WPF and Exchange installers are intentionally unsigned. The release records every attached asset's exact size and SHA-256 digest, its workflow timing, and the checks that were and were not run.
