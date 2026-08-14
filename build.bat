@@ -299,7 +299,7 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Comma
 exit /b %ERRORLEVEL%
 
 :restore_known_build_byproducts
-git restore --source=HEAD -- "Windows-Server-Tools/Windows-Server-Tools/obj/Release/CommonlyInstalledWindowsComponents.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/MainWindow.g.cs" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools.csproj.AssemblyReference.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.cache" "Windows-Server-Tools/Windows-Server-Tools/obj/Release/Windows-Server-Tools_MarkupCompile.lref"
+git restore --source=HEAD -- "Windows-Server-Tools/Windows-Server-Tools/obj/Release"
 exit /b %ERRORLEVEL%
 
 :write_build_provenance
